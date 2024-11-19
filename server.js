@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors'); // Importar cors
 
 // Configuración directa en el código
-const PORT = 3000; // O cualquier otro puerto que desees
+const PORT = process.env.PORT || 3000;
 const MONGODB_URI = "mongodb+srv://xarlytos:NxRCGi5eCbxNKj31@xarlytos.c7diz.mongodb.net/usersddb?retryWrites=true&w=majority&appName=xarlytos";
 
 // Crear una instancia de la aplicación de Express

@@ -1,18 +1,19 @@
+require('dotenv').config(); // Cargar variables de entorno desde .env si lo usas
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors'); // Importar cors
 
-// Configuración directa en el código
+// Obtener el puerto desde las variables de entorno
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = "mongodb+srv://xarlytos:NxRCGi5eCbxNKj31@xarlytos.c7diz.mongodb.net/usersddb?retryWrites=true&w=majority&appName=xarlytos";
+
+// Obtener la URI de MongoDB desde las variables de entorno
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://xarlytos:NxRCGi5eCbxNKj31@xarlytos.c7diz.mongodb.net/usersddb?retryWrites=true&w=majority&appName=xarlytos";
 
 // Crear una instancia de la aplicación de Express
 const app = express();
 
-// Opciones de conexión para Mongoose
+// Opciones de conexión para Mongoose (eliminadas useNewUrlParser y useUnifiedTopology)
 const options = {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
     tls: true,
     tlsAllowInvalidCertificates: false, // Asegura que los certificados sean válidos
     // Si es necesario, puedes agregar más opciones aquí
@@ -21,7 +22,10 @@ const options = {
 // Conexión a MongoDB usando Mongoose
 mongoose.connect(MONGODB_URI, options)
 .then(() => console.log('Conectado a MongoDB Atlas'))
-.catch(err => console.error('Error de conexión:', err));
+.catch(err => {
+    console.error('Error de conexión:', err);
+    process.exit(1); // Termina la aplicación si no puede conectar a la base de datos
+});
 
 // Middleware para habilitar CORS de forma global (permite todos los orígenes)
 app.use(cors());
@@ -57,6 +61,11 @@ app.use('/api/servicios', serviceRoutes);
 app.use('/api/entrenadores', trainerRoutes);
 app.use('/api/transacciones', transactionRoutes);
 app.use('/api/chat', chatRoutes);
+
+// Ruta para la URL raíz
+app.get('/', (req, res) => {
+    res.send('Bienvenidos a mi API perras');
+});
 
 // Middleware para manejar errores genéricos
 app.use((err, req, res, next) => {

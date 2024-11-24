@@ -5,9 +5,10 @@ require('dotenv').config(); // Carga las variables de entorno
 
 // Configuración específica de CORS
 const corsOptions = {
-  origin: 'http://localhost:5173', // Cambia esto al origen de tu frontend
+  origin: ['http://localhost:5173', 'https://crmactualizado-f9oy.vercel.app'], // Agrega tu dominio de producción
   credentials: true, // Permitir el envío de cookies y credenciales
 };
+
 
 // Configuración de los puertos y la URI de MongoDB
 const PORT = process.env.PORT || 3000;

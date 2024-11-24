@@ -1,6 +1,6 @@
 // controllers/expenseController.js
 
-const Expense = require('../models/Expense');
+const Expense = require('../models/asdasda');
 const { validationResult } = require('express-validator');
 
 // Crear un nuevo gasto

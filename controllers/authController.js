@@ -1,7 +1,13 @@
+// authController.js
+
 const Trainer = require('../models/Trainer');
 const Client = require('../models/Client');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+
+// Definir el secreto JWT directamente en el código (Solo para pruebas)
+const JWT_SECRET = 'tu_secreto_super_seguro';
+const JWT_EXPIRES_IN = '24h'; // Tiempo de expiración del token aumentado a 24 horas
 
 // Registro de un nuevo entrenador
 exports.registerTrainer = async (req, res) => {
@@ -17,6 +23,7 @@ exports.registerTrainer = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    console.log('registerTrainer - Hashed password:', hashedPassword); // Log del password encriptado
 
     trainer = new Trainer({
       nombre,
@@ -26,6 +33,7 @@ exports.registerTrainer = async (req, res) => {
     });
 
     await trainer.save();
+    console.log('registerTrainer - Trainer saved:', trainer); // Log del entrenador guardado
 
     res.status(201).json({ message: 'Entrenador registrado exitosamente' });
   } catch (error) {
@@ -33,6 +41,11 @@ exports.registerTrainer = async (req, res) => {
     res.status(500).json({ message: 'Error al registrar entrenador', error });
   }
 };
+
+// Inicio de sesión para entrenadores
+
+
+// Similarmente, asegúrate de que cualquier otra función que firme tokens JWT use JWT_SECRET correctamente
 
 // Registro de un nuevo cliente
 exports.registerClient = async (req, res) => {
@@ -65,21 +78,39 @@ exports.registerClient = async (req, res) => {
   }
 };
 
-// Inicio de sesión para entrenadores
 exports.loginTrainer = async (req, res) => {
   try {
     console.log('loginTrainer - Request body:', req.body); // Log para ver los datos recibidos
 
     const { email, password } = req.body;
     const trainer = await Trainer.findOne({ email });
-    
+    console.log('loginTrainer - Trainer found:', trainer); // Log del entrenador encontrado
+
     if (!trainer || !(await bcrypt.compare(password, trainer.password))) {
       console.log('loginTrainer - Credenciales incorrectas para:', email); // Log si las credenciales son incorrectas
       return res.status(400).json({ message: 'Credenciales incorrectas' });
     }
 
-    const token = jwt.sign({ id: trainer._id, rol: 'trainer' }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.json({ token, user: { id: trainer._id, nombre: trainer.nombre, rol: trainer.rol } });
+    const payload = { id: trainer._id, rol: 'trainer' };
+    console.log('loginTrainer - Payload for JWT:', payload); // Log del payload
+
+    const token = jwt.sign(
+      payload,
+      JWT_SECRET, // Uso del secreto definido directamente
+      { expiresIn: JWT_EXPIRES_IN } // Uso del tiempo de expiración definido directamente
+    );
+    console.log('loginTrainer - Token generado:', token); // Log del token generado
+
+    // Incluir el email en el objeto user de la respuesta
+    res.json({
+      token,
+      user: {
+        id: trainer._id,
+        nombre: trainer.nombre,
+        email: trainer.email, // Asegúrate de que esta línea está presente
+        rol: trainer.rol
+      }
+    });
   } catch (error) {
     console.error('loginTrainer - Error:', error); // Log para ver el error
     res.status(500).json({ message: 'Error al iniciar sesión', error });
@@ -99,7 +130,11 @@ exports.loginClient = async (req, res) => {
       return res.status(400).json({ message: 'Credenciales incorrectas' });
     }
 
-    const token = jwt.sign({ id: client._id, rol: 'client' }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign(
+      { id: client._id, rol: 'client' },
+      JWT_SECRET, // Uso del secreto definido directamente
+      { expiresIn: '1h' }
+    );
     res.json({ token, user: { id: client._id, nombre: client.nombre, rol: client.rol } });
   } catch (error) {
     console.error('loginClient - Error:', error); // Log para ver el error

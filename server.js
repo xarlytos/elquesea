@@ -62,10 +62,16 @@ const esqueletoRoutes = require('./routes/esqueletoRoutes');
 
 const RMRoutes = require('./routes/RMRoutes');
 const eventRoutes = require('./routes/eventRoutes');
+const licenseRoutes = require('./routes/licenseRoutes');
+const contractRoutes = require('./routes/contractRoutes');
+const otrosDocumentosRoutes = require('./routes/otrosDocumentosRoutes');
+const economicAlertRoutes = require('./routes/economicAlertRoutes');
+const bonoRoutes = require('./routes/bonoRoutes');
 
 // Rutas de la API
 app.use('/api/auth', authRoutes);
 app.use('/api/clientes', clientRoutes);
+app.use('/api/licenses', licenseRoutes);
 app.use('/api/gastos', expenseRoutes);
 app.use('/api/ingresos', incomeRoutes);
 app.use('/api/planes-de-pago', paymentPlanRoutes);
@@ -84,6 +90,10 @@ app.use('/api/leads', leadRoutes);
 app.use('/api/esqueleto', esqueletoRoutes);
 app.use('/api/rms', RMRoutes);
 app.use('/api/events', eventRoutes);
+app.use('/api/contracts', contractRoutes);
+app.use('/api/otros-documentos', otrosDocumentosRoutes);
+app.use('/api/economic-alerts', economicAlertRoutes);
+app.use('/api/bonos', bonoRoutes);
 
 // Ruta principal
 app.get('/', (req, res) => {

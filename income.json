@@ -1,7 +1,25 @@
 {
-    "monto": 150.00,
-    "moneda": "USD",
-    "descripcion": "Pago por sesión de entrenamiento",
-    "entrenador": "507f1f77bcf86cd799439011",
-    "fecha": "2024-01-15T10:30:00Z"
+    "id": "inc_123456789",
+    "amount": 150.00,
+    "currency": "USD",
+    "description": "Pago por sesión de entrenamiento",
+    "trainer": {
+        "id": "507f1f77bcf86cd799439011",
+        "name": "John Doe"
+    },
+    "date": "2024-01-15T10:30:00Z",
+    "status": "completed",
+    "paymentMethod": "credit_card",
+    "category": "training_session",
+    "client": {
+        "id": "cli_987654321",
+        "name": "Cliente Ejemplo"
+    },
+    "metadata": {
+        "sessionDuration": "60min",
+        "location": "Gimnasio Principal",
+        "invoiceNumber": "INV-2024-001"
+    },
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
 }

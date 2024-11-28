@@ -9,16 +9,17 @@ exports.createExpense = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const { monto, moneda, fecha, descripcion, categoria } = req.body;
+    const { importe, moneda, fecha, descripcion, categoria, tipo } = req.body;
     const entrenadorId = req.user.id; // asumimos que el ID del entrenador está en el token
 
     const newExpense = new Expense({
       entrenador: entrenadorId,
-      monto,
+      importe,
       moneda,
       fecha,
       descripcion,
-      categoria
+      categoria,
+      tipo
     });
 
     const savedExpense = await newExpense.save();
@@ -55,7 +56,7 @@ exports.getExpenseById = async (req, res) => {
 // Actualizar un gasto
 exports.updateExpense = async (req, res) => {
   try {
-    const { monto, moneda, fecha, descripcion, categoria } = req.body;
+    const { importe, moneda, fecha, descripcion, categoria, tipo } = req.body;
     let expense = await Expense.findById(req.params.id);
 
     if (!expense || expense.entrenador.toString() !== req.user.id) {
@@ -64,7 +65,7 @@ exports.updateExpense = async (req, res) => {
 
     expense = await Expense.findByIdAndUpdate(
       req.params.id,
-      { monto, moneda, fecha, descripcion, categoria },
+      { importe, moneda, fecha, descripcion, categoria, tipo },
       { new: true }
     );
 

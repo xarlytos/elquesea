@@ -3,9 +3,17 @@ const Income = require('../models/Income');
 // Obtener todos los ingresos del entrenador autenticado
 exports.obtenerIngresos = async (req, res) => {
   try {
-    const ingresos = await Income.find({ entrenador: req.user.id });
-    res.status(200).json(ingresos);
+    console.log('Iniciando obtención de ingresos...');
+    console.log('ID del entrenador:', req.user.id);
+
+    const ingresos = await Income.find({ entrenador: req.user.id }).sort({ fecha: -1 });
+    
+    console.log('Ingresos encontrados:', ingresos.length);
+    console.log('Ingresos:', JSON.stringify(ingresos, null, 2));
+
+    res.json(ingresos);
   } catch (error) {
+    console.error('Error al obtener ingresos:', error);
     res.status(500).json({ message: 'Error al obtener los ingresos' });
   }
 };

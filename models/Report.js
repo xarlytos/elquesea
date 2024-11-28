@@ -1,3 +1,5 @@
+// models/Report.js
+
 const mongoose = require('mongoose');
 
 const reportSchema = new mongoose.Schema({
@@ -8,7 +10,7 @@ const reportSchema = new mongoose.Schema({
     transactions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Transaction' }],
     event: { type: mongoose.Schema.Types.ObjectId, ref: 'Event', required: false },
     attachedFiles: [{ type: String }], // URLs or file paths
-    trainer: { type: mongoose.Schema.Types.ObjectId, ref: 'trainer', required: true },
+    trainer: { type: mongoose.Schema.Types.ObjectId, ref: 'Trainer', required: true }, // Corregido
     client: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: true },
     lead: { type: mongoose.Schema.Types.ObjectId, ref: 'Lead', required: true },
     status: { type: String, enum: ['generado', 'en revisión', 'finalizado'], default: 'generado' },

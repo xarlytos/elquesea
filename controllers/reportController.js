@@ -36,7 +36,7 @@ exports.createReport = async (req, res) => {
 // Obtener todos los reportes
 exports.getReports = async (req, res) => {
     try {
-        const reports = await Report.find().populate('transactions event trainer client lead');
+        const reports = await Report.find({ trainer: req.user.id }).populate('transactions event trainer client lead');
         res.status(200).json(reports);
     } catch (err) {
         res.status(500).json({ error: 'Error obteniendo los reportes', details: err.message });
@@ -78,5 +78,20 @@ exports.generateInsights = async (req, res) => {
         res.status(200).json({ insights });
     } catch (err) {
         res.status(500).json({ error: 'Error generando insights', details: err.message });
+    }
+};
+
+// **Nueva Función: Eliminar Todos los Reportes del Entrenador Autenticado**
+exports.deleteAllReportsByTrainer = async (req, res) => {
+    try {
+        const trainerId = req.user.id; // Asumiendo que el middleware de autenticación adjunta el ID del usuario a req.user
+
+        const result = await Report.deleteMany({ trainer: trainerId });
+
+        res.status(200).json({
+            message: `Se han eliminado ${result.deletedCount} reporte(s) del entrenador con ID ${trainerId}.`,
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Error eliminando los reportes', details: err.message });
     }
 };

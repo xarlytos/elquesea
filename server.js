@@ -61,6 +61,7 @@ const leadRoutes = require('./routes/LeadRoutes');
 const esqueletoRoutes = require('./routes/esqueletoRoutes');
 
 const RMRoutes = require('./routes/RMRoutes');
+const eventRoutes = require('./routes/eventRoutes');
 
 // Rutas de la API
 app.use('/api/auth', authRoutes);
@@ -82,6 +83,7 @@ app.use('/api/invoice', invoiceRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/esqueleto', esqueletoRoutes);
 app.use('/api/rms', RMRoutes);
+app.use('/api/events', eventRoutes);
 
 // Ruta principal
 app.get('/', (req, res) => {

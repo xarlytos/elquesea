@@ -4,11 +4,16 @@ const { Schema } = mongoose;
 
 const ExpenseSchema = new Schema({
   entrenador: { type: Schema.Types.ObjectId, ref: 'Trainer', required: true },
-  monto: { type: Number, required: true },
+  importe: { type: Number, required: true },
   moneda: { type: String, required: true },
   fecha: { type: Date, default: Date.now },
   descripcion: String,
-  categoria: String
+  categoria: String,
+  tipo: {
+    type: String,
+    enum: ['fijo', 'variable'],
+    required: true
+  }
 });
 
 module.exports = mongoose.model('Expense', ExpenseSchema);

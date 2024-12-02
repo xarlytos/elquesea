@@ -16,12 +16,18 @@ const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://xarlytos:NxRCGi5eC
 // Crear una instancia de la aplicación de Express
 const app = express();
 
+// Middleware para habilitar CORS con opciones específicas
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+// Middleware para leer JSON en las solicitudes
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
 // Opciones de conexión para Mongoose
 const options = {
     useNewUrlParser: true,
-    useUnifiedTopology: true,
-    tls: true,
-    tlsAllowInvalidCertificates: false,
+    useUnifiedTopology: true
 };
 
 // Conexión a MongoDB usando Mongoose
@@ -30,77 +36,77 @@ mongoose.connect(MONGODB_URI, options)
 .then(() => console.log(' Conectado exitosamente a MongoDB Atlas'))
 .catch(err => {
     console.error(' Error de conexión a MongoDB:', err);
-    process.exit(1); // Terminar el proceso si no podemos conectar a la base de datos
+    process.exit(1);
 });
 
-// Middleware para habilitar CORS con opciones específicas
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
-
-// Middleware para leer JSON en las solicitudes
-app.use(express.json());
-
 // Importar las rutas
-const authRoutes = require('./routes/authRoutes');
-const clientRoutes = require('./routes/clientRoutes');
-const expenseRoutes = require('./routes/expenseRoutes');
-const incomeRoutes = require('./routes/incomeRoutes');
-const paymentPlanRoutes = require('./routes/paymentPlanRoutes');
-const planEntrenamientoRoutes = require('./routes/planEntrenamientoRoutes');
-const serviceRoutes = require('./routes/serviceRoutes');
-const trainerRoutes = require('./routes/trainerRoutes');
-const transactionRoutes = require('./routes/transactionRoutes');
-const planningRoutes = require('./routes/planningRoutes');
-const dietaRoutes = require('./routes/dietas');
-const cuestionarioRoutes = require('./routes/cuestionarioRoutes');
-const emailMarketingRoutes = require("./routes/emailMarketingRoutes");
-const reportRoutes = require('./routes/reportRoutes');
-const invoiceRoutes = require('./routes/invoiceRoutes');
-const leadRoutes = require('./routes/LeadRoutes');
-const esqueletoRoutes = require('./routes/esqueletoRoutes');
-const RMRoutes = require('./routes/RMRoutes');
-const eventRoutes = require('./routes/eventRoutes');
-const licenseRoutes = require('./routes/licenseRoutes');
-const contractRoutes = require('./routes/contractRoutes');
-const otrosDocumentosRoutes = require('./routes/otrosDocumentosRoutes');
-const economicAlertRoutes = require('./routes/economicAlertRoutes');
-const bonoRoutes = require('./routes/bonoRoutes');
-const reporteRoutes = require('./routes/reporteRoutes');
+try {
+    const authRoutes = require('./routes/authRoutes');
+    const clientRoutes = require('./routes/clientRoutes');
+    const expenseRoutes = require('./routes/expenseRoutes');
+    const incomeRoutes = require('./routes/incomeRoutes');
+    const paymentPlanRoutes = require('./routes/paymentPlanRoutes');
+    const planEntrenamientoRoutes = require('./routes/planEntrenamientoRoutes');
+    const serviceRoutes = require('./routes/serviceRoutes');
+    const trainerRoutes = require('./routes/trainerRoutes');
+    const transactionRoutes = require('./routes/transactionRoutes');
+    const planningRoutes = require('./routes/planningRoutes');
+    const dietaRoutes = require('./routes/dietas');
+    const cuestionarioRoutes = require('./routes/cuestionarioRoutes');
+    const emailMarketingRoutes = require('./routes/emailMarketingRoutes');
+    const reportRoutes = require('./routes/reportRoutes');
+    const invoiceRoutes = require('./routes/invoiceRoutes');
+    const leadRoutes = require('./routes/LeadRoutes');
+    const esqueletoRoutes = require('./routes/esqueletoRoutes');
+    const RMRoutes = require('./routes/RMRoutes');
+    const eventRoutes = require('./routes/eventRoutes');
+    const licenseRoutes = require('./routes/licenseRoutes');
+    const contractRoutes = require('./routes/contractRoutes');
+    const otrosDocumentosRoutes = require('./routes/otrosDocumentosRoutes');
+    const economicAlertRoutes = require('./routes/economicAlertRoutes');
+    const bonoRoutes = require('./routes/bonoRoutes');
+    const reporteRoutes = require('./routes/reporteRoutes');
 
-// Configurar rutas
-app.use('/api/auth', authRoutes);
-app.use('/api/clientes', clientRoutes);
-app.use('/api/licenses', licenseRoutes);
-app.use('/api/gastos', expenseRoutes);
-app.use('/api/ingresos', incomeRoutes);
-app.use('/api/planes-de-pago', paymentPlanRoutes);
-app.use('/api/planes-entrenamiento', planEntrenamientoRoutes);
-app.use('/api/servicios', serviceRoutes);
-app.use('/api/entrenadores', trainerRoutes);
-app.use('/api/transacciones', transactionRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/plannings', planningRoutes);
-app.use('/api/dietas', dietaRoutes);
-app.use('/api/cuestionarios', cuestionarioRoutes);
-app.use("/api/email-marketing", emailMarketingRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/invoice', invoiceRoutes);
-app.use('/api/leads', leadRoutes);
-app.use('/api/esqueleto', esqueletoRoutes);
-app.use('/api/rms', RMRoutes);
-app.use('/api/events', eventRoutes);
-app.use('/api/contracts', contractRoutes);
-app.use('/api/otros-documentos', otrosDocumentosRoutes);
-app.use('/api/economic-alerts', economicAlertRoutes);
-app.use('/api/bonos', bonoRoutes);
-app.use('/api/reportes', reporteRoutes);
+    // Configurar rutas
+    app.use('/api/auth', authRoutes);
+    app.use('/api/clientes', clientRoutes);
+    app.use('/api/licenses', licenseRoutes);
+    app.use('/api/gastos', expenseRoutes);
+    app.use('/api/ingresos', incomeRoutes);
+    app.use('/api/planes-de-pago', paymentPlanRoutes);
+    app.use('/api/planes-entrenamiento', planEntrenamientoRoutes);
+    app.use('/api/servicios', serviceRoutes);
+    app.use('/api/entrenadores', trainerRoutes);
+    app.use('/api/transacciones', transactionRoutes);
+    app.use('/api/plannings', planningRoutes);
+    app.use('/api/dietas', dietaRoutes);
+    app.use('/api/cuestionarios', cuestionarioRoutes);
+    app.use('/api/email-marketing', emailMarketingRoutes);
+    app.use('/api/reports', reportRoutes);
+    app.use('/api/invoice', invoiceRoutes);
+    app.use('/api/leads', leadRoutes);
+    app.use('/api/esqueleto', esqueletoRoutes);
+    app.use('/api/rms', RMRoutes);
+    app.use('/api/events', eventRoutes);
+    app.use('/api/contracts', contractRoutes);
+    app.use('/api/otros-documentos', otrosDocumentosRoutes);
+    app.use('/api/economic-alerts', economicAlertRoutes);
+    app.use('/api/bonos', bonoRoutes);
+    app.use('/api/reportes', reporteRoutes);
+
+    console.log(' Todas las rutas configuradas correctamente');
+} catch (error) {
+    console.error(' Error al cargar las rutas:', error);
+    process.exit(1);
+}
 
 // Ruta principal
 app.get('/', (req, res) => {
   res.json({ 
     message: 'API REST funcionando correctamente',
     version: '1.0.0',
-    status: 'online'
+    status: 'online',
+    timestamp: new Date().toISOString()
   });
 });
 

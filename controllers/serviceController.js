@@ -207,8 +207,6 @@ const createPaymentPlan = async (req, res) => {
   }
 };
 
-
-
 /**
  * Obtener todos los planes de pago
  */
@@ -314,9 +312,9 @@ const associateClientToPaymentPlan = async (req, res) => {
   try {
     console.log('🤝 Iniciando asociación de cliente a plan de pago...');
     const { paymentPlanId } = req.params;
-    const { clientId } = req.body;
+    const { clientId, metodoPago } = req.body;
 
-    console.log('📥 Datos recibidos:', { paymentPlanId, clientId });
+    console.log('📥 Datos recibidos:', { paymentPlanId, clientId, metodoPago });
 
     // Verificar que el plan de pago exista
     const paymentPlan = await PaymentPlan.findById(paymentPlanId).populate('servicio');
@@ -341,54 +339,191 @@ const associateClientToPaymentPlan = async (req, res) => {
     client.servicios = client.servicios || [];
     paymentPlan.servicio.clientes = paymentPlan.servicio.clientes || [];
 
-    console.log('paymentPlan.clientes:', paymentPlan.clientes);
-    console.log('client.servicios:', client.servicios);
-    console.log('paymentPlan.servicio.clientes:', paymentPlan.servicio.clientes);
-
     // Asociar el cliente al plan de pago
     if (!paymentPlan.clientes.includes(client._id)) {
       paymentPlan.clientes.push(client._id);
       await paymentPlan.save();
     }
 
-    // Asociar el servicio principal al cliente
+    // Asociar el servicio al cliente si no lo tiene ya
     if (!client.servicios.includes(paymentPlan.servicio._id)) {
       client.servicios.push(paymentPlan.servicio._id);
       await client.save();
     }
 
-    // Añadir el cliente al servicio principal
+    // Asociar el cliente al servicio si no está ya asociado
     if (!paymentPlan.servicio.clientes.includes(client._id)) {
       paymentPlan.servicio.clientes.push(client._id);
       await paymentPlan.servicio.save();
     }
 
-    // Automatizar la creación de servicios adicionales
-    if (paymentPlan.servicio.serviciosAdicionales && paymentPlan.servicio.serviciosAdicionales.length > 0) {
-      console.log('🛠️ Creando servicios adicionales para el cliente...');
-      for (const servicioAdicional of paymentPlan.servicio.serviciosAdicionales) {
-        const newAdditionalService = new Service({
-          nombre: servicioAdicional,
-          descripcion: '',
-          tipo: servicioAdicional, // Usar el nombre del servicio adicional como tipo
-          entrenador: paymentPlan.servicio.entrenador,
-          clientes: [client._id],
-          fechaCreacion: new Date(),
-        });
+    // Crear servicios adicionales según corresponda
+    const serviciosAdicionales = paymentPlan.servicio.serviciosAdicionales || [];
+    console.log('🎁 Servicios adicionales:', serviciosAdicionales);
 
-        const savedAdditionalService = await newAdditionalService.save();
-        client.servicios.push(savedAdditionalService._id);
-        await client.save();
-        console.log('✅ Servicio adicional creado y asociado al cliente:', savedAdditionalService);
+    const serviciosCreados = {
+      planning: null,
+      dieta: null,
+      packCitas: null
+    };
+
+    // Crear planificación si está incluida
+    if (serviciosAdicionales.includes('Planificacion')) {
+      console.log('📋 Creando planificación...');
+      const planning = new Planning({
+        nombre: `Plan de entrenamiento - ${client.nombre}`,
+        descripcion: `Plan de entrenamiento para ${client.nombre}`,
+        fechaInicio: new Date(),
+        meta: 'Objetivo por definir',
+        semanas: 4, // Valor por defecto
+        cliente: client._id,
+        trainer: paymentPlan.servicio.entrenador
+      });
+      await planning.save();
+      serviciosCreados.planning = planning;
+
+      // Agregar la planificación al servicio
+      paymentPlan.servicio.planificaciones.push(planning._id);
+    }
+
+    // Crear dieta si está incluida
+    if (serviciosAdicionales.includes('Dietas')) {
+      console.log('🥗 Creando dieta...');
+      const dieta = new Dieta({
+        nombre: `Plan nutricional - ${client.nombre}`,
+        cliente: client._id,
+        trainer: paymentPlan.servicio.entrenador,
+        fechaInicio: new Date(),
+        objetivo: 'Por definir',
+        restricciones: 'Ninguna',
+        estado: 'activa',
+        fechaComienzo: new Date()
+      });
+      await dieta.save();
+      serviciosCreados.dieta = dieta;
+
+      // Agregar la dieta al servicio
+      paymentPlan.servicio.dietas.push(dieta._id);
+    }
+
+    // Crear servicio de pack de citas si está incluido
+    if (serviciosAdicionales.includes('Pack de Citas')) {
+      console.log('📅 Creando pack de citas...');
+      const packCitas = new Service({
+        nombre: `Pack de Citas - ${client.nombre}`,
+        descripcion: 'Pack de citas incluido en el servicio',
+        tipo: 'Pack de Citas',
+        entrenador: paymentPlan.servicio.entrenador,
+        clientes: [client._id]
+      });
+      await packCitas.save();
+      serviciosCreados.packCitas = packCitas;
+
+      // Agregar el pack de citas a los servicios del cliente
+      client.servicios.push(packCitas._id);
+      await client.save();
+    }
+
+    // Guardar los cambios en el servicio principal
+    await paymentPlan.servicio.save();
+
+    // Crear los ingresos según la frecuencia de pago
+    console.log('💰 Creando ingresos programados...');
+    const fechasIngresos = calcularFechasIngresos(paymentPlan.frecuencia);
+    const ingresos = [];
+
+    for (const fecha of fechasIngresos) {
+      const ingreso = new Income({
+        entrenador: paymentPlan.servicio.entrenador,
+        monto: paymentPlan.precio,
+        moneda: paymentPlan.moneda,
+        fecha: fecha,
+        descripcion: `Pago ${paymentPlan.frecuencia} - ${paymentPlan.servicio.nombre} - ${client.nombre}`
+      });
+      await ingreso.save();
+      ingresos.push(ingreso);
+
+      // Agregar el ingreso al servicio
+      paymentPlan.servicio.ingresos.push(ingreso._id);
+    }
+    await paymentPlan.servicio.save();
+
+    // Crear suscripción en Stripe si el método de pago es stripe
+    let stripeSubscription = null;
+    if (metodoPago === 'stripe' && paymentPlan.stripePriceId) {
+      console.log('💳 Creando suscripción en Stripe...');
+      try {
+        const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
+        // Asumiendo que el cliente tiene un customerId en Stripe almacenado
+        if (!client.stripeCustomerId) {
+          return res.status(400).json({ 
+            mensaje: 'El cliente no tiene un método de pago configurado en Stripe.' 
+          });
+        }
+
+        stripeSubscription = await stripe.subscriptions.create({
+          customer: client.stripeCustomerId,
+          items: [{ price: paymentPlan.stripePriceId }],
+          metadata: {
+            clientId: client._id.toString(),
+            paymentPlanId: paymentPlan._id.toString(),
+            servicioId: paymentPlan.servicio._id.toString()
+          }
+        });
+      } catch (stripeError) {
+        console.error('❌ Error al crear suscripción en Stripe:', stripeError);
+        // No detenemos el proceso si falla Stripe, solo registramos el error
       }
     }
 
-    res.status(200).json({ mensaje: 'Cliente asociado al plan de pago exitosamente.' });
+    console.log('✅ Asociación completada exitosamente');
+    res.status(200).json({
+      mensaje: 'Cliente asociado exitosamente al plan de pago',
+      serviciosCreados,
+      ingresos,
+      stripeSubscription
+    });
+
   } catch (error) {
-    console.error('❌ Error al asociar el cliente al plan de pago:', error);
-    res.status(500).json({ mensaje: 'Error al asociar el cliente al plan de pago.', error: error.message });
+    console.error('❌ Error en la asociación:', error);
+    res.status(500).json({ 
+      mensaje: 'Error al asociar el cliente al plan de pago',
+      error: error.message 
+    });
   }
 };
+
+// Función auxiliar para calcular las fechas de los ingresos según la frecuencia
+function calcularFechasIngresos(frecuencia) {
+  const fechas = [];
+  const hoy = new Date();
+
+  switch (frecuencia) {
+    case 'Único':
+      fechas.push(hoy);
+      break;
+    case 'Mensual':
+      for (let i = 0; i < 12; i++) {
+        const fecha = new Date(hoy);
+        fecha.setMonth(fecha.getMonth() + i);
+        fechas.push(fecha);
+      }
+      break;
+    case 'Trimestral':
+      for (let i = 0; i < 4; i++) {
+        const fecha = new Date(hoy);
+        fecha.setMonth(fecha.getMonth() + (i * 3));
+        fechas.push(fecha);
+      }
+      break;
+    case 'Anual':
+      fechas.push(hoy);
+      break;
+  }
+
+  return fechas;
+}
 
 /**
  * Listar clientes asociados a un plan de pago
@@ -460,6 +595,7 @@ const disassociateClientFromPaymentPlan = async (req, res) => {
     res.status(500).json({ mensaje: 'Error al desasociar el cliente del plan de pago.', error: error.message });
   }
 };
+
 /**
  * Obtener servicios por tipo
  */

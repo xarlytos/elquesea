@@ -20,7 +20,7 @@ router.get('/:id', verificarToken, transactionController.obtenerTransaccionPorId
 router.post(
   '/', 
   verificarToken, 
-  verificarRol(['client']), 
+  verificarRol(['trainer', 'client']), 
   transactionController.crearTransaccion
 );
 

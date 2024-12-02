@@ -67,6 +67,7 @@ const contractRoutes = require('./routes/contractRoutes');
 const otrosDocumentosRoutes = require('./routes/otrosDocumentosRoutes');
 const economicAlertRoutes = require('./routes/economicAlertRoutes');
 const bonoRoutes = require('./routes/bonoRoutes');
+const reporteRoutes = require('./routes/reporteRoutes');
 
 // Rutas de la API
 app.use('/api/auth', authRoutes);
@@ -94,6 +95,7 @@ app.use('/api/contracts', contractRoutes);
 app.use('/api/otros-documentos', otrosDocumentosRoutes);
 app.use('/api/economic-alerts', economicAlertRoutes);
 app.use('/api/bonos', bonoRoutes);
+app.use('/api/reportes', reporteRoutes);
 
 // Ruta principal
 app.get('/', (req, res) => {

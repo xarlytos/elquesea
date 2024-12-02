@@ -18,4 +18,5 @@ const PaymentPlanSchema = new Schema({
   fechaCreacion: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('PaymentPlan', PaymentPlanSchema);
+// Evitar la recompilación del modelo si ya existe
+module.exports = mongoose.models.PaymentPlan || mongoose.model('PaymentPlan', PaymentPlanSchema);

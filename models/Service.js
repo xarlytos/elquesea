@@ -18,6 +18,9 @@ const Service = mongoose.models.Service || mongoose.model('Service', new Schema(
     enum: ['Pack de Citas', 'Planificacion', 'Dietas'],
   }],
   sesiones: [{ type: Schema.Types.ObjectId, ref: 'Session' }],
+  ingresos: [{ type: Schema.Types.ObjectId, ref: 'Income' }], // Relación con Income
+  planificaciones: [{ type: Schema.Types.ObjectId, ref: 'Planning' }], // Relación con Planning
+  dietas: [{ type: Schema.Types.ObjectId, ref: 'Dieta' }], // Relación con Dieta
   fechaCreacion: { type: Date, default: Date.now },
 }));
 

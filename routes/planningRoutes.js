@@ -13,6 +13,7 @@ router.get('/schemas', verificarToken, esTrainer, planningController.getAllPlann
 router.get('/:id', verificarToken, esTrainer, planningController.getPlanningById); // Obtener un planning por ID con subdocumentos
 router.post('/', verificarToken, esTrainer, planningController.createPlanning); // Crear un nuevo planning con una semana por defecto
 router.put('/:id', verificarToken, esTrainer, planningController.updatePlanning); // Actualizar un planning existente
+router.post('/:id/anadirsemanasiguiente', verificarToken, esTrainer, planningController.addNextWeek); // Añadir una semana siguiente
 router.delete('/:id', verificarToken, esTrainer, planningController.deletePlanning); // Eliminar un planning
 
 // Rutas para CheckIns

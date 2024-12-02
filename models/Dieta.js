@@ -57,7 +57,6 @@ const DiaSchema = new Schema({
   comidas: {
     type: [ComidaSchema],
     required: true,
-    // Eliminamos la validación para la cantidad de comidas
   },
 }, { _id: false });
 
@@ -108,12 +107,12 @@ const DietaSchema = new Schema({
     required: true,
   },
   restricciones: {
-    type: String, // Puedes detallar más si es necesario
+    type: String,
     required: true,
   },
   estado: {
     type: String,
-    enum: ['activa', 'inactiva', 'completada'], // Ejemplos de estados
+    enum: ['activa', 'inactiva', 'completada'],
     default: 'activa',
   },
   fechaComienzo: {
@@ -125,7 +124,11 @@ const DietaSchema = new Schema({
     required: true,
   },
 }, {
-  timestamps: true, // Opcional: para crear campos createdAt y updatedAt
+  timestamps: true,
 });
 
-module.exports = mongoose.model('Dieta', DietaSchema);
+// Evitar la recompilación del modelo si ya existe
+const Dieta = mongoose.models.Dieta || mongoose.model('Dieta', DietaSchema);
+
+// Exportar el modelo
+module.exports = { Dieta };

@@ -340,6 +340,90 @@ const updatePlanning = async (req, res) => {
     }
   };
   
+  // Añadir una nueva semana al planning
+  const addNextWeek = async (req, res) => {
+    try {
+      const { id } = req.params;
+      console.log('1. ID recibido:', id);
+      console.log('2. Tipo de ID:', typeof id);
+      
+      // Verificar si el ID es válido
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        console.log('3. ID no válido según mongoose');
+        return res.status(400).json({ message: 'ID de planning no válido' });
+      }
+      
+      console.log('4. Buscando planning con ID:', id);
+      // Buscar el planning y poblarlo con sus semanas
+      const planning = await Planning.findById(id).populate('plan');
+      console.log('5. Planning encontrado:', planning ? 'Sí' : 'No');
+      
+      if (!planning) {
+        console.log('6. Planning no encontrado en la base de datos');
+        return res.status(404).json({ message: 'Planning no encontrado' });
+      }
+
+      console.log('7. Plan actual:', planning.plan);
+      console.log('8. Número de semanas actuales:', planning.plan.length);
+
+      // Crear una nueva semana
+      const newWeek = new WeekPlan({
+        weekNumber: planning.plan.length + 1,
+        days: Array.from({ length: 7 }, () => new DayPlan({
+          sessions: [] // Inicialmente sin sesiones
+        }))
+      });
+      console.log('9. Nueva semana creada:', newWeek);
+
+      // Añadir la nueva semana al planning
+      planning.plan.push(newWeek);
+      console.log('10. Semana añadida al planning');
+      console.log('11. Planning antes de guardar:', planning);
+
+      const savedPlanning = await planning.save();
+      console.log('12. Planning guardado correctamente');
+      console.log('13. Planning guardado:', savedPlanning);
+
+      console.log('14. Iniciando población de datos...');
+      // Poblar la nueva semana para devolverla con todos sus datos
+      await planning.populate({
+        path: 'plan',
+        populate: {
+          path: 'days',
+          populate: {
+            path: 'sessions',
+            populate: {
+              path: 'exercises',
+              populate: {
+                path: 'sets',
+                populate: 'checkIns'
+              }
+            }
+          }
+        }
+      });
+      console.log('15. Datos poblados correctamente');
+
+      // Devolver la nueva semana
+      const addedWeek = planning.plan[planning.plan.length - 1];
+      console.log('16. Semana a devolver:', addedWeek);
+      
+      res.status(201).json(addedWeek);
+    } catch (error) {
+      console.error("addNextWeek - Error detallado:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      res.status(500).json({ 
+        message: 'Error al añadir nueva semana', 
+        error: error.message,
+        type: error.name,
+        stack: error.stack 
+      });
+    }
+  };
+  
   module.exports = {
     getAllPlannings,
     getPlanningById,
@@ -349,5 +433,6 @@ const updatePlanning = async (req, res) => {
     getAllPlanningSchemas,
     addCheckInToSet,
     getCheckInsForSet,
+    addNextWeek
   };
   

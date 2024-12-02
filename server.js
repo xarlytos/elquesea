@@ -1,18 +1,17 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors'); // Importar cors
-require('dotenv').config(); // Carga las variables de entorno
+const cors = require('cors');
+require('dotenv').config();
 
 // Configuración específica de CORS
 const corsOptions = {
-  origin: ['http://localhost:5173', 'https://crmactualizado-f9oy.vercel.app'], // Agrega tu dominio de producción
-  credentials: true, // Permitir el envío de cookies y credenciales
+  origin: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : ['http://localhost:5173', 'https://crmactualizado-f9oy.vercel.app'],
+  credentials: true,
 };
-
 
 // Configuración de los puertos y la URI de MongoDB
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = "mongodb+srv://xarlytos:NxRCGi5eCbxNKj31@xarlytos.c7diz.mongodb.net/usersddb?retryWrites=true&w=majority&appName=xarlytos";
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://xarlytos:NxRCGi5eCbxNKj31@xarlytos.c7diz.mongodb.net/usersddb?retryWrites=true&w=majority&appName=xarlytos";
 
 // Crear una instancia de la aplicación de Express
 const app = express();
@@ -22,25 +21,26 @@ const options = {
     useNewUrlParser: true,
     useUnifiedTopology: true,
     tls: true,
-    tlsAllowInvalidCertificates: false, // Asegura que los certificados sean válidos
-    // Si es necesario, puedes agregar más opciones aquí
+    tlsAllowInvalidCertificates: false,
 };
 
 // Conexión a MongoDB usando Mongoose
+console.log('Intentando conectar a MongoDB...');
 mongoose.connect(MONGODB_URI, options)
-.then(() => console.log('Conectado a MongoDB Atlas'))
-.catch(err => console.error('Error de conexión:', err));
+.then(() => console.log(' Conectado exitosamente a MongoDB Atlas'))
+.catch(err => {
+    console.error(' Error de conexión a MongoDB:', err);
+    process.exit(1); // Terminar el proceso si no podemos conectar a la base de datos
+});
 
 // Middleware para habilitar CORS con opciones específicas
 app.use(cors(corsOptions));
-
-// Middleware para manejar solicitudes preflight con opciones específicas
 app.options('*', cors(corsOptions));
 
 // Middleware para leer JSON en las solicitudes
 app.use(express.json());
 
-// Importar las rutas desde la carpeta routes
+// Importar las rutas
 const authRoutes = require('./routes/authRoutes');
 const clientRoutes = require('./routes/clientRoutes');
 const expenseRoutes = require('./routes/expenseRoutes');
@@ -50,7 +50,6 @@ const planEntrenamientoRoutes = require('./routes/planEntrenamientoRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const trainerRoutes = require('./routes/trainerRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
-const chatRoutes = require('./routes/chatRoutes');
 const planningRoutes = require('./routes/planningRoutes');
 const dietaRoutes = require('./routes/dietas');
 const cuestionarioRoutes = require('./routes/cuestionarioRoutes');
@@ -59,7 +58,6 @@ const reportRoutes = require('./routes/reportRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
 const leadRoutes = require('./routes/LeadRoutes');
 const esqueletoRoutes = require('./routes/esqueletoRoutes');
-
 const RMRoutes = require('./routes/RMRoutes');
 const eventRoutes = require('./routes/eventRoutes');
 const licenseRoutes = require('./routes/licenseRoutes');
@@ -69,7 +67,7 @@ const economicAlertRoutes = require('./routes/economicAlertRoutes');
 const bonoRoutes = require('./routes/bonoRoutes');
 const reporteRoutes = require('./routes/reporteRoutes');
 
-// Rutas de la API
+// Configurar rutas
 app.use('/api/auth', authRoutes);
 app.use('/api/clientes', clientRoutes);
 app.use('/api/licenses', licenseRoutes);
@@ -99,16 +97,28 @@ app.use('/api/reportes', reporteRoutes);
 
 // Ruta principal
 app.get('/', (req, res) => {
-  res.send('Bienvenidos a mi API perras');
+  res.json({ 
+    message: 'API REST funcionando correctamente',
+    version: '1.0.0',
+    status: 'online'
+  });
 });
 
-// Middleware para manejar errores genéricos
+// Middleware para manejar errores
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Ocurrió un error en el servidor', error: err.message });
+  console.error(' Error en el servidor:', err);
+  res.status(500).json({ 
+    message: 'Error interno del servidor', 
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Contacte al administrador'
+  });
 });
 
 // Iniciar el servidor
 app.listen(PORT, () => {
-  console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
+  console.log(`
+=== SERVIDOR INICIADO ===
+ Puerto: ${PORT}
+ Modo: ${process.env.NODE_ENV || 'development'}
+ Fecha: ${new Date().toISOString()}
+  `);
 });

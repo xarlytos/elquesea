@@ -79,6 +79,10 @@ const ClientSchema = new Schema({
   },
   direccion: direccionSchema,
   notas: [notaSchema], // Agregando el array de notas al esquema del cliente
+  eventos: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Event'
+  }],
   plannings: [{ type: Schema.Types.ObjectId, ref: 'Planning' }],
   planningActivo: { type: Schema.Types.ObjectId, ref: 'Planning' },
   dietas: [{ type: Schema.Types.ObjectId, ref: 'Dieta' }],

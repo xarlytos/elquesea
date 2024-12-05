@@ -1,74 +1,192 @@
-// controllers/exerciseController.js
-
 const Exercise = require('../models/Exercise');
-const { validationResult } = require('express-validator');
-
-// Crear un ejercicio
-exports.createExercise = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-
-    const { nombre, tipo, grupoMuscular, descripcion, equipo, imgUrl } = req.body;
-    const newExercise = new Exercise({ nombre, tipo, grupoMuscular, descripcion, equipo, imgUrl });
-
-    const savedExercise = await newExercise.save();
-    res.status(201).json(savedExercise);
-  } catch (error) {
-    res.status(500).json({ message: 'Error al crear ejercicio', error });
-  }
-};
 
 // Obtener todos los ejercicios
-exports.getExercises = async (req, res) => {
+const getAllExercises = async (req, res) => {
   try {
+    console.log('\n=== 📋 OBTENIENDO TODOS LOS EJERCICIOS ===');
     const exercises = await Exercise.find();
-    res.json(exercises);
+    return res.status(200).json({
+      message: 'Ejercicios obtenidos exitosamente',
+      data: exercises
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error al obtener ejercicios', error });
+    console.error('❌ Error al obtener ejercicios:', error);
+    return res.status(500).json({
+      message: 'Error al obtener los ejercicios',
+      error: error.message
+    });
   }
 };
 
 // Obtener un ejercicio por ID
-exports.getExerciseById = async (req, res) => {
+const getExerciseById = async (req, res) => {
   try {
-    const exercise = await Exercise.findById(req.params.id);
-    if (!exercise) return res.status(404).json({ message: 'Ejercicio no encontrado' });
-    res.json(exercise);
+    console.log('\n=== 🔍 BUSCANDO EJERCICIO ===');
+    const { id } = req.params;
+    const exercise = await Exercise.findById(id);
+    
+    if (!exercise) {
+      console.log('❌ Ejercicio no encontrado');
+      return res.status(404).json({ message: 'Ejercicio no encontrado' });
+    }
+
+    return res.status(200).json({
+      message: 'Ejercicio encontrado exitosamente',
+      data: exercise
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error al obtener ejercicio', error });
+    console.error('❌ Error al buscar ejercicio:', error);
+    return res.status(500).json({
+      message: 'Error al buscar el ejercicio',
+      error: error.message
+    });
+  }
+};
+
+// Crear un nuevo ejercicio
+const createExercise = async (req, res) => {
+  try {
+    console.log('\n=== 🏋️ CREANDO NUEVO EJERCICIO ===');
+    const exerciseData = req.body;
+    console.log('📝 Datos recibidos:', exerciseData);
+    
+    // Validación de campos requeridos
+    console.log('🔍 Validando campos requeridos...');
+    if (!exerciseData.nombre) {
+      console.log('❌ Error: El nombre es requerido');
+      return res.status(400).json({
+        message: 'El nombre del ejercicio es requerido'
+      });
+    }
+
+    // Asegurar que equipo sea un array
+    if (exerciseData.equipo && !Array.isArray(exerciseData.equipo)) {
+      exerciseData.equipo = [exerciseData.equipo];
+    }
+
+    console.log('✅ Validación exitosa');
+    console.log('📦 Creando instancia del modelo Exercise...');
+    const newExercise = new Exercise(exerciseData);
+    
+    console.log('💾 Guardando ejercicio en la base de datos...');
+    await newExercise.save();
+
+    console.log('✅ Ejercicio creado exitosamente');
+    console.log('📊 Datos del ejercicio creado:', newExercise);
+    
+    return res.status(201).json({
+      message: 'Ejercicio creado exitosamente',
+      data: newExercise
+    });
+  } catch (error) {
+    console.error('❌ Error al crear ejercicio:', error);
+    console.error('📄 Detalles del error:', {
+      mensaje: error.message,
+      codigo: error.code,
+      nombre: error.name
+    });
+    return res.status(500).json({
+      message: 'Error al crear el ejercicio',
+      error: error.message
+    });
   }
 };
 
 // Actualizar un ejercicio
-exports.updateExercise = async (req, res) => {
+const updateExercise = async (req, res) => {
   try {
-    const { nombre, tipo, grupoMuscular, descripcion, equipo, imgUrl } = req.body;
-    let exercise = await Exercise.findById(req.params.id);
+    console.log('\n=== ✏️ ACTUALIZANDO EJERCICIO ===');
+    const { id } = req.params;
+    const updateData = req.body;
+    console.log('📝 Datos de actualización:', { id, updateData });
 
-    if (!exercise) return res.status(404).json({ message: 'Ejercicio no encontrado' });
+    // Asegurar que equipo sea un array si está presente
+    if (updateData.equipo && !Array.isArray(updateData.equipo)) {
+      updateData.equipo = [updateData.equipo];
+    }
 
-    exercise = await Exercise.findByIdAndUpdate(
-      req.params.id,
-      { nombre, tipo, grupoMuscular, descripcion, equipo, imgUrl },
-      { new: true }
+    const updatedExercise = await Exercise.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true }
     );
 
-    res.json(exercise);
+    if (!updatedExercise) {
+      console.log('❌ Ejercicio no encontrado');
+      return res.status(404).json({ message: 'Ejercicio no encontrado' });
+    }
+
+    console.log('✅ Ejercicio actualizado exitosamente');
+    return res.status(200).json({
+      message: 'Ejercicio actualizado exitosamente',
+      data: updatedExercise
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error al actualizar ejercicio', error });
+    console.error('❌ Error al actualizar ejercicio:', error);
+    return res.status(500).json({
+      message: 'Error al actualizar el ejercicio',
+      error: error.message
+    });
   }
 };
 
 // Eliminar un ejercicio
-exports.deleteExercise = async (req, res) => {
+const deleteExercise = async (req, res) => {
   try {
-    const exercise = await Exercise.findById(req.params.id);
-    if (!exercise) return res.status(404).json({ message: 'Ejercicio no encontrado' });
+    console.log('\n=== 🗑️ ELIMINANDO EJERCICIO ===');
+    const { id } = req.params;
+    console.log('🔍 ID del ejercicio a eliminar:', id);
 
-    await exercise.remove();
-    res.json({ message: 'Ejercicio eliminado' });
+    const deletedExercise = await Exercise.findByIdAndDelete(id);
+
+    if (!deletedExercise) {
+      console.log('❌ Ejercicio no encontrado');
+      return res.status(404).json({ message: 'Ejercicio no encontrado' });
+    }
+
+    console.log('✅ Ejercicio eliminado exitosamente');
+    return res.status(200).json({
+      message: 'Ejercicio eliminado exitosamente',
+      data: deletedExercise
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error al eliminar ejercicio', error });
+    console.error('❌ Error al eliminar ejercicio:', error);
+    return res.status(500).json({
+      message: 'Error al eliminar el ejercicio',
+      error: error.message
+    });
   }
+};
+
+// Buscar ejercicios por grupo muscular
+const getExercisesByMuscleGroup = async (req, res) => {
+  try {
+    console.log('\n=== 💪 BUSCANDO EJERCICIOS POR GRUPO MUSCULAR ===');
+    const { grupoMuscular } = req.params;
+    console.log('🔍 Grupo muscular:', grupoMuscular);
+
+    const exercises = await Exercise.find({ 
+      grupoMuscular: { $in: [grupoMuscular] } 
+    });
+
+    return res.status(200).json({
+      message: 'Ejercicios encontrados exitosamente',
+      data: exercises
+    });
+  } catch (error) {
+    console.error('❌ Error al buscar ejercicios:', error);
+    return res.status(500).json({
+      message: 'Error al buscar ejercicios por grupo muscular',
+      error: error.message
+    });
+  }
+};
+
+module.exports = {
+  getAllExercises,
+  getExerciseById,
+  createExercise,
+  updateExercise,
+  deleteExercise,
+  getExercisesByMuscleGroup
 };

@@ -17,6 +17,19 @@ router.post(
   eventController.createEvent
 );
 
+// Ruta para crear un evento de cliente (reunión/cita)
+router.post(
+  '/client-event',
+  [
+    verificarToken,
+    check('title', 'El título del evento es obligatorio').not().isEmpty(),
+    check('date', 'La fecha es obligatoria').not().isEmpty(),
+    check('time', 'La hora es obligatoria').not().isEmpty(),
+    check('clientId', 'El ID del cliente es obligatorio').not().isEmpty().isMongoId(),
+  ],
+  eventController.createClientEvent
+);
+
 // Ruta para obtener todos los eventos (accesible para todos los usuarios autenticados)
 router.get(
   '/',
@@ -29,6 +42,16 @@ router.get(
   '/:id',
   verificarToken,
   eventController.getEventById
+);
+
+// Ruta para obtener todos los eventos de un cliente específico
+router.get(
+  '/client/:clientId',
+  [
+    verificarToken,
+    verificarRol(['trainer', 'admin']), // Solo entrenadores y admins pueden ver eventos de clientes
+  ],
+  eventController.getClientEvents
 );
 
 // Exportar el router

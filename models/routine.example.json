@@ -1,0 +1,73 @@
+{
+  "name": "Rutina de Fuerza - Principiante",
+  "description": "Rutina de entrenamiento de fuerza para principiantes, enfocada en ejercicios compuestos",
+  "tags": ["principiante", "fuerza", "fullbody"],
+  "notes": "Realizar calentamiento previo de 10 minutos. Descanso entre series: 90 segundos",
+  "exercises": [
+    {
+      "name": "Sentadillas con Barra",
+      "metrics": [
+        {
+          "type": "Repeticiones",
+          "value": "12"
+        },
+        {
+          "type": "Peso",
+          "value": "40kg"
+        },
+        {
+          "type": "Descanso",
+          "value": "90s"
+        },
+        {
+          "type": "RPE",
+          "value": "7"
+        }
+      ],
+      "notes": "Mantener la espalda recta y respiración controlada"
+    },
+    {
+      "name": "Press de Banca",
+      "metrics": [
+        {
+          "type": "Repeticiones",
+          "value": "10"
+        },
+        {
+          "type": "Peso",
+          "value": "30kg"
+        },
+        {
+          "type": "Descanso",
+          "value": "90s"
+        }
+      ],
+      "notes": "Retracción escapular y pies firmes en el suelo"
+    },
+    {
+      "name": "Peso Muerto",
+      "metrics": [
+        {
+          "type": "Repeticiones",
+          "value": "8"
+        },
+        {
+          "type": "Peso",
+          "value": "50kg"
+        },
+        {
+          "type": "Descanso",
+          "value": "120s"
+        },
+        {
+          "type": "Tempo",
+          "value": "2-1-3"
+        }
+      ],
+      "notes": "Mantener la tensión en el core durante todo el movimiento"
+    }
+  ],
+  "userId": "507f1f77bcf86cd799439011",
+  "createdAt": "2024-01-20T10:00:00.000Z",
+  "updatedAt": "2024-01-20T10:00:00.000Z"
+}

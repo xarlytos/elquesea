@@ -1,0 +1,112 @@
+{
+  "nombre": "Plan de Entrenamiento - Hipertrofia",
+  "descripcion": "Plan de entrenamiento enfocado en hipertrofia muscular con progresión de 12 semanas",
+  "fechaInicio": "2024-01-22T00:00:00.000Z",
+  "meta": "Aumentar masa muscular y fuerza",
+  "semanas": 12,
+  "tipo": "Planificacion",
+  "cliente": "507f1f77bcf86cd799439011",
+  "trainer": "507f1f77bcf86cd799439012",
+  "plan": [
+    {
+      "_id": "507f1f77bcf86cd799439013",
+      "weekNumber": 1,
+      "startDate": "2024-01-22T00:00:00.000Z",
+      "days": {
+        "Lunes": {
+          "_id": "507f1f77bcf86cd799439014",
+          "day": "Lunes",
+          "fecha": "2024-01-22T00:00:00.000Z",
+          "sessions": [
+            {
+              "_id": "507f1f77bcf86cd799439015",
+              "name": "Entrenamiento de Pecho y Tríceps",
+              "tipo": "Normal",
+              "rondas": 1,
+              "exercises": [
+                {
+                  "_id": "507f1f77bcf86cd799439016",
+                  "exercise": "507f1f77bcf86cd799439017",
+                  "name": "Press de Banca",
+                  "sets": [
+                    {
+                      "_id": "507f1f77bcf86cd799439018",
+                      "reps": 12,
+                      "weight": 60,
+                      "rest": 90,
+                      "tempo": "2-1-2",
+                      "rpe": 8,
+                      "completed": false,
+                      "checkIns": [
+                        {
+                          "_id": "507f1f77bcf86cd799439019",
+                          "color": "#00FF00",
+                          "comentario": "Buena ejecución, aumentar peso próxima semana",
+                          "fecha": "2024-01-22T10:30:00.000Z"
+                        }
+                      ]
+                    },
+                    {
+                      "_id": "507f1f77bcf86cd799439020",
+                      "reps": 10,
+                      "weight": 65,
+                      "rest": 90,
+                      "tempo": "2-1-2",
+                      "rpe": 8,
+                      "completed": false
+                    }
+                  ]
+                },
+                {
+                  "_id": "507f1f77bcf86cd799439021",
+                  "exercise": "507f1f77bcf86cd799439022",
+                  "name": "Extensiones de Tríceps",
+                  "sets": [
+                    {
+                      "_id": "507f1f77bcf86cd799439023",
+                      "reps": 15,
+                      "weight": 20,
+                      "rest": 60,
+                      "rpe": 7,
+                      "completed": false
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "Miércoles": {
+          "_id": "507f1f77bcf86cd799439024",
+          "day": "Miércoles",
+          "fecha": "2024-01-24T00:00:00.000Z",
+          "sessions": [
+            {
+              "_id": "507f1f77bcf86cd799439025",
+              "name": "Entrenamiento de Espalda y Bíceps",
+              "tipo": "Superset",
+              "rondas": 3,
+              "exercises": [
+                {
+                  "_id": "507f1f77bcf86cd799439026",
+                  "exercise": "507f1f77bcf86cd799439027",
+                  "name": "Dominadas",
+                  "sets": [
+                    {
+                      "_id": "507f1f77bcf86cd799439028",
+                      "reps": 8,
+                      "weight": 0,
+                      "rest": 60,
+                      "rpe": 9,
+                      "completed": false
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

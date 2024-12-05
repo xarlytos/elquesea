@@ -66,6 +66,9 @@ try {
     const economicAlertRoutes = require('./routes/economicAlertRoutes');
     const bonoRoutes = require('./routes/bonoRoutes');
     const reporteRoutes = require('./routes/reporteRoutes');
+    const chatRoutes = require('./routes/chatRoutes');
+    const exerciseRoutes = require('./routes/exerciseRoutes');
+    const routineRoutes = require('./routes/routineRoutes');
 
     // Configurar rutas
     app.use('/api/auth', authRoutes);
@@ -79,6 +82,8 @@ try {
     app.use('/api/entrenadores', trainerRoutes);
     app.use('/api/transacciones', transactionRoutes);
     app.use('/api/plannings', planningRoutes);
+    app.use('/api/exercises', exerciseRoutes);
+    app.use('/api/routines', routineRoutes);
     app.use('/api/dietas', dietaRoutes);
     app.use('/api/cuestionarios', cuestionarioRoutes);
     app.use('/api/email-marketing', emailMarketingRoutes);
@@ -93,6 +98,7 @@ try {
     app.use('/api/economic-alerts', economicAlertRoutes);
     app.use('/api/bonos', bonoRoutes);
     app.use('/api/reportes', reporteRoutes);
+    app.use('/api/chat', chatRoutes);
 
     console.log(' Todas las rutas configuradas correctamente');
 } catch (error) {

@@ -66,7 +66,6 @@ try {
     const economicAlertRoutes = require('./routes/economicAlertRoutes');
     const bonoRoutes = require('./routes/bonoRoutes');
     const reporteRoutes = require('./routes/reporteRoutes');
-    const chatRoutes = require('./routes/chatRoutes');
     const exerciseRoutes = require('./routes/exerciseRoutes');
     const routineRoutes = require('./routes/routineRoutes');
 
@@ -98,7 +97,6 @@ try {
     app.use('/api/economic-alerts', economicAlertRoutes);
     app.use('/api/bonos', bonoRoutes);
     app.use('/api/reportes', reporteRoutes);
-    app.use('/api/chat', chatRoutes);
 
     console.log(' Todas las rutas configuradas correctamente');
 } catch (error) {

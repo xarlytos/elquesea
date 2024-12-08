@@ -2,15 +2,29 @@
 
 // Detecta si el entorno es de prueba o desarrollo
 const isTestEnv = process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development';
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = process.env.STRIPE_SECRET_KEY 
+  ? require('stripe')(process.env.STRIPE_SECRET_KEY)
+  : null;
 const Client = require('../../models/Client');
 let stripeInstance = null;
+
+const handleStripeError = (error) => {
+  console.error('Error de Stripe:', error);
+  return {
+    error: true,
+    message: error.message || 'Error al procesar la operación con Stripe'
+  };
+};
+
+const isStripeEnabled = () => {
+  return !!stripe;
+};
 
 /**
  * Obtiene una instancia de Stripe, inicializándola si es necesario
  */
 function getStripeInstance() {
-  if (!stripeInstance && !isTestEnv) {
+  if (!stripeInstance && !isTestEnv && isStripeEnabled()) {
     if (!process.env.STRIPE_SECRET_KEY) {
       throw new Error('STRIPE_SECRET_KEY no está configurada en las variables de entorno');
     }
@@ -26,6 +40,10 @@ async function createProduct(name, description) {
   if (isTestEnv) {
     return { id: `prod_test_${Date.now()}` };
   }
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - saltando creación de producto');
+    return null;
+  }
   const stripe = getStripeInstance();
   return await stripe.products.create({ name, description });
 }
@@ -36,6 +54,10 @@ async function createProduct(name, description) {
 async function createPrice(productId, amount, currency, interval = null) {
   if (isTestEnv) {
     return { id: `price_test_${Date.now()}` };
+  }
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - saltando creación de precio');
+    return null;
   }
   const stripe = getStripeInstance();
   const params = {
@@ -53,122 +75,134 @@ async function createPrice(productId, amount, currency, interval = null) {
  * Crea un producto con precio
  */
 async function createProductWithPrice(productData) {
-    const stripe = getStripeInstance();
-    try {
-        // Crear el producto
-        const product = await stripe.products.create({
-            name: productData.name,
-            description: productData.description
-        });
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - saltando creación de producto con precio');
+    return null;
+  }
+  const stripe = getStripeInstance();
+  try {
+    // Crear el producto
+    const product = await stripe.products.create({
+      name: productData.name,
+      description: productData.description
+    });
 
-        // Crear el precio para el producto
-        const price = await stripe.prices.create({
-            product: product.id,
-            unit_amount: Math.round(productData.price * 100), // Convertir a centavos
-            currency: productData.currency || 'eur',
-            recurring: productData.recurring ? {
-                interval: productData.recurring.interval || 'month',
-                interval_count: productData.recurring.interval_count || 1
-            } : null
-        });
+    // Crear el precio para el producto
+    const price = await stripe.prices.create({
+      product: product.id,
+      unit_amount: Math.round(productData.price * 100), // Convertir a centavos
+      currency: productData.currency || 'eur',
+      recurring: productData.recurring ? {
+        interval: productData.recurring.interval || 'month',
+        interval_count: productData.recurring.interval_count || 1
+      } : null
+    });
 
-        return {
-            product: product,
-            price: price
-        };
-    } catch (error) {
-        console.error('Error al crear producto con precio:', error);
-        throw error;
-    }
+    return {
+      product: product,
+      price: price
+    };
+  } catch (error) {
+    return handleStripeError(error);
+  }
 }
 
 /**
  * Listar todos los productos con sus precios
  */
 async function listProducts() {
-    const stripe = getStripeInstance();
-    try {
-        const products = await stripe.products.list({
-            active: true,
-            expand: ['data.default_price']
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - saltando lista de productos');
+    return null;
+  }
+  const stripe = getStripeInstance();
+  try {
+    const products = await stripe.products.list({
+      active: true,
+      expand: ['data.default_price']
+    });
+
+    // Obtener precios para cada producto
+    const productsWithPrices = await Promise.all(
+      products.data.map(async (product) => {
+        const prices = await stripe.prices.list({
+          product: product.id,
+          active: true
         });
+        return {
+          ...product,
+          prices: prices.data
+        };
+      })
+    );
 
-        // Obtener precios para cada producto
-        const productsWithPrices = await Promise.all(
-            products.data.map(async (product) => {
-                const prices = await stripe.prices.list({
-                    product: product.id,
-                    active: true
-                });
-                return {
-                    ...product,
-                    prices: prices.data
-                };
-            })
-        );
-
-        return productsWithPrices;
-    } catch (error) {
-        console.error('Error al listar productos:', error);
-        throw error;
-    }
+    return productsWithPrices;
+  } catch (error) {
+    return handleStripeError(error);
+  }
 }
 
 /**
  * Crea una sesión de configuración para agregar método de pago
  */
 async function createSetupIntent(clientId) {
-    const stripe = getStripeInstance();
-    try {
-        const client = await Client.findById(clientId);
-        if (!client) {
-            throw new Error('Cliente no encontrado');
-        }
-
-        // Asegurarse de que el cliente exista en Stripe
-        const stripeCustomer = await createOrRetrieveCustomer(clientId);
-
-        // Crear el SetupIntent
-        const setupIntent = await stripe.setupIntents.create({
-            customer: stripeCustomer.id,
-            payment_method_types: ['card'],
-            usage: 'off_session', // Permite usar el método de pago para cargos futuros
-        });
-
-        return setupIntent;
-    } catch (error) {
-        console.error('Error al crear SetupIntent:', error);
-        throw error;
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - saltando creación de SetupIntent');
+    return null;
+  }
+  const stripe = getStripeInstance();
+  try {
+    const client = await Client.findById(clientId);
+    if (!client) {
+      throw new Error('Cliente no encontrado');
     }
+
+    // Asegurarse de que el cliente exista en Stripe
+    const stripeCustomer = await createOrRetrieveCustomer(clientId);
+
+    // Crear el SetupIntent
+    const setupIntent = await stripe.setupIntents.create({
+      customer: stripeCustomer.id,
+      payment_method_types: ['card'],
+      usage: 'off_session', // Permite usar el método de pago para cargos futuros
+    });
+
+    return setupIntent;
+  } catch (error) {
+    return handleStripeError(error);
+  }
 }
 
 /**
  * Crea una suscripción para un cliente
  */
 async function createSubscription(clientId, priceId, successUrl, cancelUrl) {
-    const stripe = getStripeInstance();
-    try {
-        // Obtener o crear el cliente en Stripe
-        const customer = await createOrRetrieveCustomer(clientId);
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - saltando creación de suscripción');
+    return null;
+  }
+  const stripe = getStripeInstance();
+  try {
+    // Obtener o crear el cliente en Stripe
+    const customer = await createOrRetrieveCustomer(clientId);
 
-        // Crear la sesión de Checkout
-        const session = await stripe.checkout.sessions.create({
-            customer: customer.id,
-            payment_method_types: ['card'],
-            line_items: [{
-                price: priceId,
-                quantity: 1,
-            }],
-            mode: 'subscription',
-            success_url: successUrl || process.env.STRIPE_SUCCESS_URL || 'http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}',
-            cancel_url: cancelUrl || process.env.STRIPE_CANCEL_URL || 'http://localhost:3000/cancel',
-        });
+    // Crear la sesión de Checkout
+    const session = await stripe.checkout.sessions.create({
+      customer: customer.id,
+      payment_method_types: ['card'],
+      line_items: [{
+        price: priceId,
+        quantity: 1,
+      }],
+      mode: 'subscription',
+      success_url: successUrl || process.env.STRIPE_SUCCESS_URL || 'http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: cancelUrl || process.env.STRIPE_CANCEL_URL || 'http://localhost:3000/cancel',
+    });
 
-        return session;
-    } catch (error) {
-        console.error('Error al crear suscripción:', error);
-        throw error;
-    }
+    return session;
+  } catch (error) {
+    return handleStripeError(error);
+  }
 }
 
 /**
@@ -177,6 +211,10 @@ async function createSubscription(clientId, priceId, successUrl, cancelUrl) {
 async function deleteProduct(productId) {
   if (isTestEnv) {
     return true;
+  }
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - saltando eliminación de producto');
+    return null;
   }
   const stripe = getStripeInstance();
   return await stripe.products.del(productId);
@@ -189,6 +227,10 @@ async function cancelSubscription(subscriptionId) {
   if (isTestEnv) {
     return true;
   }
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - saltando cancelación de suscripción');
+    return null;
+  }
   const stripe = getStripeInstance();
   return await stripe.subscriptions.del(subscriptionId);
 }
@@ -197,6 +239,10 @@ async function cancelSubscription(subscriptionId) {
  * Crear un enlace de pago para una suscripción
  */
 async function createPaymentLink(planData, clientId, successUrl, cancelUrl) {
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - saltando creación de enlace de pago');
+    return null;
+  }
   try {
     const stripe = getStripeInstance();
     // Crear o recuperar el producto en Stripe
@@ -249,8 +295,7 @@ async function createPaymentLink(planData, clientId, successUrl, cancelUrl) {
       productId: product.id
     };
   } catch (error) {
-    console.error('Error creando enlace de pago:', error);
-    throw error;
+    return handleStripeError(error);
   }
 }
 
@@ -258,6 +303,10 @@ async function createPaymentLink(planData, clientId, successUrl, cancelUrl) {
  * Verificar y procesar una sesión de checkout completada
  */
 async function handleCheckoutComplete(sessionId) {
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - saltando procesamiento de checkout');
+    return null;
+  }
   try {
     const stripe = getStripeInstance();
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
@@ -276,288 +325,316 @@ async function handleCheckoutComplete(sessionId) {
 
     return { success: false };
   } catch (error) {
-    console.error('Error procesando checkout:', error);
-    throw error;
+    return handleStripeError(error);
   }
 }
 
 // Crear o recuperar un cliente en Stripe
 async function createOrRetrieveCustomer(clientId) {
-    const stripe = getStripeInstance();
-    try {
-        // Primero, obtener el cliente de la base de datos
-        const client = await Client.findById(clientId);
-        
-        if (!client) {
-            throw new Error('Cliente no encontrado');
-        }
-
-        if (client.stripeCustomerId) {
-            // Si ya tiene ID de Stripe, recuperar el cliente
-            return await stripe.customers.retrieve(client.stripeCustomerId);
-        }
-
-        // Si no tiene ID de Stripe, crear nuevo cliente
-        const customer = await stripe.customers.create({
-            email: client.email,
-            name: `${client.nombre} ${client.apellidos || ''}`.trim(),
-            metadata: {
-                clientId: client._id.toString()
-            }
-        });
-
-        // Actualizar el cliente en la base de datos con su ID de Stripe
-        await Client.findByIdAndUpdate(clientId, { stripeCustomerId: customer.id });
-
-        return customer;
-    } catch (error) {
-        console.error('Error en createOrRetrieveCustomer:', error);
-        throw error;
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - saltando creación de cliente');
+    return null;
+  }
+  try {
+    // Primero, obtener el cliente de la base de datos
+    const client = await Client.findById(clientId);
+    
+    if (!client) {
+      throw new Error('Cliente no encontrado');
     }
+
+    if (client.stripeCustomerId) {
+      // Si ya tiene ID de Stripe, recuperar el cliente
+      return await stripe.customers.retrieve(client.stripeCustomerId);
+    }
+
+    // Si no tiene ID de Stripe, crear nuevo cliente
+    const customer = await stripe.customers.create({
+      email: client.email,
+      name: `${client.nombre} ${client.apellidos || ''}`.trim(),
+      metadata: {
+        clientId: client._id.toString()
+      }
+    });
+
+    // Actualizar el cliente en la base de datos con su ID de Stripe
+    await Client.findByIdAndUpdate(clientId, { stripeCustomerId: customer.id });
+
+    return customer;
+  } catch (error) {
+    return handleStripeError(error);
+  }
 }
 
 /**
  * Actualizar una suscripción existente
  */
 async function updateSubscription(subscriptionId, updateData) {
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - saltando actualización de suscripción');
+    return null;
+  }
+  try {
     const stripe = getStripeInstance();
-    try {
-        const subscription = await stripe.subscriptions.update(subscriptionId, {
-            ...updateData,
-            proration_behavior: updateData.proration_behavior || 'create_prorations'
-        });
-        return subscription;
-    } catch (error) {
-        console.error('Error al actualizar suscripción:', error);
-        throw error;
-    }
+    const subscription = await stripe.subscriptions.update(subscriptionId, {
+      ...updateData,
+      proration_behavior: updateData.proration_behavior || 'create_prorations'
+    });
+    return subscription;
+  } catch (error) {
+    return handleStripeError(error);
+  }
 }
 
 // Crear una factura manual para un cliente
 async function createInvoice(clientId, items, options = {}) {
-    const stripe = getStripeInstance();
-    try {
-        const client = await Client.findById(clientId);
-        if (!client) {
-            throw new Error('Cliente no encontrado');
-        }
-
-        // Asegurarse de que el cliente exista en Stripe
-        const stripeCustomer = await createOrRetrieveCustomer(clientId);
-
-        // Crear la factura
-        const invoice = await stripe.invoices.create({
-            customer: stripeCustomer.id,
-            auto_advance: options.auto_advance !== false, // Enviar automáticamente al cliente
-            collection_method: options.collection_method || 'charge_automatically',
-            days_until_due: options.days_until_due || null,
-        });
-
-        // Agregar items a la factura
-        for (const item of items) {
-            await stripe.invoiceItems.create({
-                customer: stripeCustomer.id,
-                invoice: invoice.id,
-                amount: Math.round(item.amount * 100), // Convertir a centavos
-                currency: item.currency || 'eur',
-                description: item.description
-            });
-        }
-
-        // Finalizar la factura
-        if (options.finalize !== false) {
-            await stripe.invoices.finalizeInvoice(invoice.id);
-        }
-
-        // Enviar la factura por email
-        if (options.send_email !== false) {
-            await stripe.invoices.send(invoice.id);
-        }
-
-        return invoice;
-    } catch (error) {
-        console.error('Error al crear factura:', error);
-        throw error;
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - saltando creación de factura');
+    return null;
+  }
+  try {
+    const client = await Client.findById(clientId);
+    if (!client) {
+      throw new Error('Cliente no encontrado');
     }
+
+    // Asegurarse de que el cliente exista en Stripe
+    const stripeCustomer = await createOrRetrieveCustomer(clientId);
+
+    // Crear la factura
+    const invoice = await stripe.invoices.create({
+      customer: stripeCustomer.id,
+      auto_advance: options.auto_advance !== false, // Enviar automáticamente al cliente
+      collection_method: options.collection_method || 'charge_automatically',
+      days_until_due: options.days_until_due || null,
+    });
+
+    // Agregar items a la factura
+    for (const item of items) {
+      await stripe.invoiceItems.create({
+        customer: stripeCustomer.id,
+        invoice: invoice.id,
+        amount: Math.round(item.amount * 100), // Convertir a centavos
+        currency: item.currency || 'eur',
+        description: item.description
+      });
+    }
+
+    // Finalizar la factura
+    if (options.finalize !== false) {
+      await stripe.invoices.finalizeInvoice(invoice.id);
+    }
+
+    // Enviar la factura por email
+    if (options.send_email !== false) {
+      await stripe.invoices.send(invoice.id);
+    }
+
+    return invoice;
+  } catch (error) {
+    return handleStripeError(error);
+  }
 }
 
 // Funciones para manejar clientes
 async function getCustomerPayments(stripeCustomerId) {
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - no se pueden obtener pagos');
+    return [];
+  }
+  try {
     const stripe = getStripeInstance();
-    try {
-        const paymentIntents = await stripe.paymentIntents.list({
-            customer: stripeCustomerId,
-            limit: 100
-        });
-        return paymentIntents.data;
-    } catch (error) {
-        console.error('Error al obtener pagos del cliente:', error);
-        throw error;
-    }
+    const paymentIntents = await stripe.paymentIntents.list({
+      customer: stripeCustomerId,
+      limit: 100
+    });
+    return paymentIntents.data;
+  } catch (error) {
+    return handleStripeError(error);
+  }
 }
 
 async function getCustomerSubscriptions(stripeCustomerId) {
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - no se pueden obtener suscripciones');
+    return [];
+  }
+  try {
     const stripe = getStripeInstance();
-    try {
-        const subscriptions = await stripe.subscriptions.list({
-            customer: stripeCustomerId,
-            status: 'all',
-            expand: ['data.default_payment_method']
-        });
-        return subscriptions.data;
-    } catch (error) {
-        console.error('Error al obtener suscripciones del cliente:', error);
-        throw error;
-    }
+    const subscriptions = await stripe.subscriptions.list({
+      customer: stripeCustomerId,
+      status: 'all',
+      expand: ['data.default_payment_method']
+    });
+    return subscriptions.data;
+  } catch (error) {
+    return handleStripeError(error);
+  }
 }
 
 async function getCustomerInvoices(stripeCustomerId) {
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - no se pueden obtener facturas');
+    return [];
+  }
+  try {
     const stripe = getStripeInstance();
-    try {
-        const invoices = await stripe.invoices.list({
-            customer: stripeCustomerId,
-            limit: 100
-        });
-        return invoices.data;
-    } catch (error) {
-        console.error('Error al obtener facturas del cliente:', error);
-        throw error;
-    }
+    const invoices = await stripe.invoices.list({
+      customer: stripeCustomerId,
+      limit: 100
+    });
+    return invoices.data;
+  } catch (error) {
+    return handleStripeError(error);
+  }
 }
 
 async function getUpcomingInvoice(stripeCustomerId, subscriptionId) {
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - no se puede obtener próxima factura');
+    return null;
+  }
+  try {
     const stripe = getStripeInstance();
-    try {
-        return await stripe.invoices.retrieveUpcoming({
-            customer: stripeCustomerId,
-            subscription: subscriptionId
-        });
-    } catch (error) {
-        console.error('Error al obtener próxima factura:', error);
-        throw error;
-    }
+    return await stripe.invoices.retrieveUpcoming({
+      customer: stripeCustomerId,
+      subscription: subscriptionId
+    });
+  } catch (error) {
+    return handleStripeError(error);
+  }
 }
 
 async function getRevenueSummary(startDate, endDate) {
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - no se puede obtener resumen de ingresos');
+    return null;
+  }
+  try {
     const stripe = getStripeInstance();
-    try {
-        const charges = await stripe.charges.list({
-            created: {
-                gte: startDate,
-                lte: endDate
-            },
-            status: 'succeeded'
-        });
+    const charges = await stripe.charges.list({
+      created: {
+        gte: startDate,
+        lte: endDate
+      },
+      status: 'succeeded'
+    });
 
-        const summary = charges.data.reduce((acc, charge) => {
-            return {
-                total: acc.total + charge.amount,
-                count: acc.count + 1,
-                currency: charge.currency
-            };
-        }, { total: 0, count: 0, currency: 'eur' });
+    const summary = charges.data.reduce((acc, charge) => {
+      return {
+        total: acc.total + charge.amount,
+        count: acc.count + 1,
+        currency: charge.currency
+      };
+    }, { total: 0, count: 0, currency: 'eur' });
 
-        return {
-            ...summary,
-            total: summary.total / 100,
-            periodStart: new Date(startDate * 1000),
-            periodEnd: new Date(endDate * 1000)
-        };
-    } catch (error) {
-        console.error('Error al obtener resumen de ingresos:', error);
-        throw error;
-    }
+    return {
+      ...summary,
+      total: summary.total / 100,
+      periodStart: new Date(startDate * 1000),
+      periodEnd: new Date(endDate * 1000)
+    };
+  } catch (error) {
+    return handleStripeError(error);
+  }
 }
 
 async function getPaymentDetails(paymentIntentId) {
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - no se pueden obtener detalles del pago');
+    return null;
+  }
+  try {
     const stripe = getStripeInstance();
-    try {
-        return await stripe.paymentIntents.retrieve(paymentIntentId, {
-            expand: ['customer', 'payment_method']
-        });
-    } catch (error) {
-        console.error('Error al obtener detalles del pago:', error);
-        throw error;
-    }
+    return await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ['customer', 'payment_method']
+    });
+  } catch (error) {
+    return handleStripeError(error);
+  }
 }
 
 /**
  * Manejar eventos de webhook de Stripe
  */
 async function handleWebhookEvent(event) {
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - saltando manejo de webhook');
+    return null;
+  }
+  try {
     const stripe = getStripeInstance();
-    try {
-        switch (event.type) {
-            case 'checkout.session.completed':
-                const session = event.data.object;
-                
-                // Verificar si es una suscripción
-                if (session.mode === 'subscription') {
-                    // Obtener la suscripción
-                    const subscription = await stripe.subscriptions.retrieve(session.subscription);
-                    
-                    // Obtener el cliente de nuestra base de datos usando el metadata
-                    const Client = require('../../models/Client');
-                    const clientId = session.metadata.clientId;
-                    
-                    if (clientId) {
-                        // Actualizar el cliente con la información de la suscripción
-                        await Client.findByIdAndUpdate(clientId, {
-                            $set: {
-                                'subscription.id': subscription.id,
-                                'subscription.status': subscription.status,
-                                'subscription.currentPeriodEnd': new Date(subscription.current_period_end * 1000),
-                                'subscription.priceId': subscription.items.data[0].price.id
-                            }
-                        });
-                    }
-                }
-                break;
-
-            case 'customer.subscription.updated':
-            case 'customer.subscription.deleted':
-                const subscription = event.data.object;
-                const Client = require('../../models/Client');
-                
-                // Buscar el cliente por el ID de cliente de Stripe
-                const client = await Client.findOne({ stripeCustomerId: subscription.customer });
-                
-                if (client) {
-                    // Actualizar el estado de la suscripción
-                    await Client.findByIdAndUpdate(client._id, {
-                        $set: {
-                            'subscription.status': subscription.status,
-                            'subscription.currentPeriodEnd': new Date(subscription.current_period_end * 1000)
-                        }
-                    });
-                }
-                break;
+    switch (event.type) {
+      case 'checkout.session.completed':
+        const session = event.data.object;
+        
+        // Verificar si es una suscripción
+        if (session.mode === 'subscription') {
+          // Obtener la suscripción
+          const subscription = await stripe.subscriptions.retrieve(session.subscription);
+          
+          // Obtener el cliente de nuestra base de datos usando el metadata
+          const Client = require('../../models/Client');
+          const clientId = session.metadata.clientId;
+          
+          if (clientId) {
+            // Actualizar el cliente con la información de la suscripción
+            await Client.findByIdAndUpdate(clientId, {
+              $set: {
+                'subscription.id': subscription.id,
+                'subscription.status': subscription.status,
+                'subscription.currentPeriodEnd': new Date(subscription.current_period_end * 1000),
+                'subscription.priceId': subscription.items.data[0].price.id
+              }
+            });
+          }
         }
-    } catch (error) {
-        console.error('Error al manejar webhook:', error);
-        throw error;
+        break;
+
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted':
+        const subscription = event.data.object;
+        const Client = require('../../models/Client');
+        
+        // Buscar el cliente por el ID de cliente de Stripe
+        const client = await Client.findOne({ stripeCustomerId: subscription.customer });
+        
+        if (client) {
+          // Actualizar el estado de la suscripción
+          await Client.findByIdAndUpdate(client._id, {
+            $set: {
+              'subscription.status': subscription.status,
+              'subscription.currentPeriodEnd': new Date(subscription.current_period_end * 1000)
+            }
+          });
+        }
+        break;
     }
+  } catch (error) {
+    return handleStripeError(error);
+  }
 }
 
 module.exports = {
-    createProduct,
-    createPrice,
-    createProductWithPrice,
-    listProducts,
-    createSubscription,
-    createSetupIntent,
-    updateSubscription,
-    deleteProduct,
-    cancelSubscription,
-    createPaymentLink,
-    handleCheckoutComplete,
-    createOrRetrieveCustomer,
-    getCustomerPayments,
-    getCustomerSubscriptions,
-    getCustomerInvoices,
-    getUpcomingInvoice,
-    getRevenueSummary,
-    getPaymentDetails,
-    createInvoice,
-    handleWebhookEvent
+  isStripeEnabled,
+  createProduct,
+  createPrice,
+  createProductWithPrice,
+  listProducts,
+  createSubscription,
+  createSetupIntent,
+  updateSubscription,
+  deleteProduct,
+  cancelSubscription,
+  createPaymentLink,
+  handleCheckoutComplete,
+  createOrRetrieveCustomer,
+  getCustomerPayments,
+  getCustomerSubscriptions,
+  getCustomerInvoices,
+  getUpcomingInvoice,
+  getRevenueSummary,
+  getPaymentDetails,
+  createInvoice,
+  handleWebhookEvent
 };

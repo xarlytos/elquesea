@@ -53,7 +53,7 @@ const createService = async (req, res) => {
 const getAllServices = async (req, res) => {
   try {
     console.log('📋 Obteniendo todos los servicios...');
-    const services = await Service.find().populate('entrenador').populate('planDePago').populate('clientes');
+    const services = await Service.find().populate('entrenador').populate('planesDePago').populate('clientes');
     res.status(200).json(services);
   } catch (error) {
     console.error('❌ Error al obtener los servicios:', error);
@@ -68,7 +68,7 @@ const getServiceById = async (req, res) => {
   try {
     const { serviceId } = req.params;
     console.log('🔍 Obteniendo servicio con ID:', serviceId);
-    const service = await Service.findById(serviceId).populate('entrenador').populate('planDePago').populate('clientes');
+    const service = await Service.findById(serviceId).populate('entrenador').populate('planesDePago').populate('clientes');
     if (!service) {
       return res.status(404).json({ mensaje: 'Servicio no encontrado.' });
     }
@@ -194,13 +194,24 @@ const createPaymentPlan = async (req, res) => {
     console.log('✅ Plan de pago creado:', savedPaymentPlan);
 
     // Asignar el PaymentPlan al Service correspondiente
-    // Asegurarse de que planDePago sea un arreglo y agregar el nuevo PaymentPlan
-    servicioExistente.planDePago = servicioExistente.planDePago || [];
-    servicioExistente.planDePago.push(savedPaymentPlan._id);
-    await servicioExistente.save();
-    console.log('🔄 Plan de pago asignado al servicio:', servicioExistente);
+    await Service.findByIdAndUpdate(
+      servicio,
+      { $push: { planesDePago: savedPaymentPlan._id } },
+      { new: true }
+    );
+    console.log('🔄 Plan de pago asignado al servicio');
 
-    res.status(201).json(savedPaymentPlan);
+    // Devolver el plan de pago creado junto con el servicio actualizado
+    const servicioActualizado = await Service.findById(servicio)
+      .populate('planesDePago')
+      .populate('entrenador')
+      .populate('clientes');
+
+    res.status(201).json({
+      mensaje: 'Plan de pago creado y asignado al servicio exitosamente',
+      planDePago: savedPaymentPlan,
+      servicio: servicioActualizado
+    });
   } catch (error) {
     console.error('❌ Error al crear el plan de pago:', error);
     res.status(500).json({ mensaje: 'Error al crear el plan de pago.', error: error.message });
@@ -611,7 +622,10 @@ const getServicesByType = async (req, res) => {
     }
 
     // Obtener servicios del tipo especificado
-    const services = await Service.find({ tipo }).populate('entrenador').populate('planDePago').populate('clientes');
+    const services = await Service.find({ tipo })
+      .populate('entrenador')
+      .populate('planesDePago')  // Cambiado de planDePago a planesDePago
+      .populate('clientes');
     res.status(200).json(services);
   } catch (error) {
     console.error('❌ Error al obtener los servicios por tipo:', error);

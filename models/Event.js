@@ -1,37 +1,45 @@
+// models/Event.js
 const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
+const { Schema } = mongoose;
 
-const eventSchema = new Schema({
-  name: {
-    type: String,
-    required: true,
-  },
+const alertSchema = new Schema({
   type: {
     type: String,
-    enum: ['Workshop', 'Webinar', 'Meeting', 'Training'], // Ejemplo de tipos
-    required: true,
+    enum: ['email', 'push', 'sms', 'popup'],
+    default: 'popup'
   },
-  date: {
-    type: Date,
-    required: true,
-  },
-  trainer: {
-    type: Schema.Types.ObjectId,
-    ref: 'Trainer',
-    required: false,
-  },
-  client: {
-    type: Schema.Types.ObjectId,
-    ref: 'Client',
-    required: false,
-  },
-  lead: {
-    type: Schema.Types.ObjectId,
-    ref: 'Lead',
-    required: false,
-  },
-}, {
-  timestamps: true, // Para createdAt y updatedAt
+  timeBeforeEvent: {
+    type: Number, // Ej: minutos u horas antes del evento
+    default: 30
+  }
 });
 
-module.exports = mongoose.model('Event', eventSchema);
+const EventSchema = new Schema({
+  title: { type: String, required: true },
+  description: { type: String, default: '' },
+  startDate: { type: Date, required: true },
+  endDate: { type: Date, required: true },
+  type: {
+    type: String,
+    enum: ['TAREA_PROPIA', 'CITA_CON_CLIENTE', 'RUTINA_CLIENTE', 'PAGO_CLIENTE', 'ALARMA', 'GENERAL'],
+    default: 'GENERAL'
+  },
+  origin: {
+    type: String,
+    enum: ['PROPIO', 'CLIENTE'],
+    default: 'PROPIO'
+  },
+  isWorkRelated: { type: Boolean, default: true },
+
+  // Referencias a otros modelos
+  trainer: { type: Schema.Types.ObjectId, ref: 'Trainer' },
+  client: { type: Schema.Types.ObjectId, ref: 'Client' },
+  relatedService: { type: Schema.Types.ObjectId, ref: 'Service' },
+  relatedPaymentPlan: { type: Schema.Types.ObjectId, ref: 'PaymentPlan' },
+  relatedRoutinePlan: { type: Schema.Types.ObjectId, ref: 'Planning' },
+
+  alerts: [alertSchema],
+  createdAt: { type: Date, default: Date.now }
+});
+
+module.exports = mongoose.model('Event', EventSchema);

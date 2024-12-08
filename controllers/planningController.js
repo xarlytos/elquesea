@@ -27,18 +27,16 @@ const getAllPlannings = async (req, res) => {
               path: 'sessions',
               populate: {
                 path: 'exercises',
-                populate: {
+                populate: [{
                   path: 'exercise',
-                  populate: {
-                    path: 'sets',
-                    populate: {
-                      path: 'checkIns',
-                    },
-                  },
-                },
-              },
-            },
-          },
+                  select: 'nombre grupoMuscular descripcion equipo imgUrl'
+                }, {
+                  path: 'sets',
+                  populate: 'checkIns'
+                }]
+              }
+            }
+          }
         })
         .exec();
       res.status(200).json(plannings);
@@ -683,13 +681,20 @@ const updatePlanning = async (req, res) => {
   // Eliminar una sesión
   const deleteSession = async (req, res) => {
     try {
-      console.log('\n=== 🚀 INICIANDO PROCESO DE ELIMINACIÓN DE SESIÓN ===');
+      console.log('\n====================================================================');
+      console.log('================== 🚀 INICIO deleteSession ==========================');
+      console.log('====================================================================\n');
+
       const { sessionId } = req.params;
-      console.log('📍 ID de sesión a eliminar:', sessionId);
+      console.log('📝 Datos de la solicitud:');
+      console.log('------------------------');
+      console.log('ID de sesión:', sessionId);
+      console.log('ID de usuario:', req.user.id);
 
       // Validar que el ID de sesión sea válido
       if (!mongoose.Types.ObjectId.isValid(sessionId)) {
-        console.log('❌ Error: El ID de sesión no es un ObjectId válido de MongoDB');
+        console.log('❌ Error: ID de sesión inválido');
+        console.log('ID proporcionado:', sessionId);
         return res.status(400).json({ message: 'ID de sesión inválido' });
       }
 
@@ -697,27 +702,30 @@ const updatePlanning = async (req, res) => {
       console.log('\n1️⃣ Buscando información de la sesión...');
       const session = await Session.findById(sessionId);
       if (!session) {
-        console.log('❌ Error: No se encontró la sesión con ID:', sessionId);
+        console.log('❌ Error: Sesión no encontrada');
+        console.log('ID buscado:', sessionId);
         return res.status(404).json({ message: 'Sesión no encontrada' });
       }
       console.log('✅ Sesión encontrada:', {
         id: session._id,
         nombre: session.name,
-        numEjercicios: session.exercises.length
+        numEjercicios: session.exercises.length,
+        ejercicios: session.exercises
       });
 
       // Buscar el día que contiene esta sesión
       console.log('\n2️⃣ Buscando el día que contiene la sesión...');
       const dayPlan = await DayPlan.findOne({ sessions: sessionId });
       if (!dayPlan) {
-        console.log('❌ Error: No se encontró el día que contiene la sesión');
+        console.log('❌ Error: Día no encontrado');
+        console.log('Buscando día con sesión ID:', sessionId);
         return res.status(404).json({ message: 'Día que contiene la sesión no encontrado' });
       }
       console.log('✅ Día encontrado:', {
         id: dayPlan._id,
-        día: dayPlan.day,
-        fecha: dayPlan.fecha,
-        numSesiones: dayPlan.sessions.length
+        fecha: dayPlan.date,
+        totalSesiones: dayPlan.sessions.length,
+        sesiones: dayPlan.sessions
       });
 
       // Eliminar la referencia de la sesión del día
@@ -727,7 +735,8 @@ const updatePlanning = async (req, res) => {
       await dayPlan.save();
       console.log('✅ Referencia eliminada del día:', {
         sesionesPrevias: sesionesAnteriores,
-        sesionesActuales: dayPlan.sessions.length
+        sesionesActuales: dayPlan.sessions.length,
+        sesionesEliminadas: sesionesAnteriores - dayPlan.sessions.length
       });
 
       // Eliminar los ejercicios asociados a la sesión
@@ -742,58 +751,93 @@ const updatePlanning = async (req, res) => {
         console.log(`\n📋 Procesando ejercicio ${exerciseId}...`);
         const exercise = await PlanningExercise.findById(exerciseId);
         if (exercise) {
-          console.log(`   Nombre ejercicio: ${exercise.name}`);
+          console.log('   Detalles del ejercicio:', {
+            nombre: exercise.name,
+            numSets: exercise.sets.length,
+            sets: exercise.sets
+          });
           
           // Eliminar los sets de cada ejercicio
           for (const setId of exercise.sets) {
             console.log(`   💪 Procesando set ${setId}...`);
             const set = await Set.findById(setId);
             if (set) {
+              console.log('      Detalles del set:', {
+                numCheckIns: set.checkIns.length,
+                checkIns: set.checkIns
+              });
+
               // Eliminar los checkIns de cada set
               for (const checkInId of set.checkIns) {
-                await CheckIn.findByIdAndDelete(checkInId);
+                const checkIn = await CheckIn.findByIdAndDelete(checkInId);
                 contadores.checkIns++;
-                console.log(`      ✓ CheckIn eliminado: ${checkInId}`);
+                console.log(`      ✓ CheckIn eliminado:`, {
+                  id: checkInId,
+                  datos: checkIn
+                });
               }
-              await Set.findByIdAndDelete(setId);
+              
+              const setEliminado = await Set.findByIdAndDelete(setId);
               contadores.sets++;
-              console.log(`   ✓ Set eliminado: ${setId}`);
+              console.log(`   ✓ Set eliminado:`, {
+                id: setId,
+                datos: setEliminado
+              });
             }
           }
-          await PlanningExercise.findByIdAndDelete(exerciseId);
+
+          const ejercicioEliminado = await PlanningExercise.findByIdAndDelete(exerciseId);
           contadores.ejercicios++;
-          console.log(`✓ Ejercicio eliminado: ${exerciseId}`);
+          console.log(`✓ Ejercicio eliminado:`, {
+            id: exerciseId,
+            datos: ejercicioEliminado
+          });
         }
       }
 
       console.log('\n📊 Resumen de elementos eliminados:', {
         ejercicios: contadores.ejercicios,
         sets: contadores.sets,
-        checkIns: contadores.checkIns
+        checkIns: contadores.checkIns,
+        total: contadores.ejercicios + contadores.sets + contadores.checkIns
       });
 
       // Finalmente, eliminar la sesión
       console.log('\n5️⃣ Eliminando la sesión principal...');
-      await Session.findByIdAndDelete(sessionId);
-      console.log('✅ Sesión eliminada exitosamente');
+      const sesionEliminada = await Session.findByIdAndDelete(sessionId);
+      console.log('✅ Sesión eliminada exitosamente:', {
+        id: sessionId,
+        datos: sesionEliminada
+      });
 
-      console.log('\n=== ✨ PROCESO COMPLETADO EXITOSAMENTE ===');
+      console.log('\n====================================================================');
+      console.log('================== ✨ FIN deleteSession ============================');
+      console.log('====================================================================\n');
+
       res.status(200).json({
         message: 'Sesión y todos sus componentes eliminados exitosamente',
         data: {
           sessionId,
           dayId: dayPlan._id,
-          elementosEliminados: contadores
+          elementosEliminados: contadores,
+          detallesSesion: sesionEliminada
         }
       });
 
     } catch (error) {
       console.error("\n❌ ERROR EN DELETE SESSION ❌");
-      console.error("Mensaje de error:", error.message);
-      console.error("Stack trace:", error.stack);
+      console.error("Tipo de error:", error.name);
+      console.error("Mensaje:", error.message);
+      console.error("Stack:", error.stack);
+      console.error("Detalles adicionales:", error);
+      
       res.status(500).json({ 
         message: 'Error al eliminar la sesión', 
-        error: error.message 
+        error: {
+          tipo: error.name,
+          mensaje: error.message,
+          detalles: error.toString()
+        }
       });
     }
   };
@@ -860,8 +904,14 @@ const updatePlanning = async (req, res) => {
           rest: setData.rest,
           tempo: setData.tempo,
           rpe: setData.rpe,
+          rpm: setData.rpm,
           rir: setData.rir,
-          completed: setData.completed || false
+          speed: setData.speed,
+          cadence: setData.cadence,
+          distance: setData.distance,
+          height: setData.height,
+          calories: setData.calories,
+          round: setData.round
         };
 
         const newSet = new Set(setFields);
@@ -955,23 +1005,51 @@ const updatePlanning = async (req, res) => {
             });
         }
 
-        // 5. Crear el ejercicio
+        // 5. Crear el set inicial con todos los campos
+        const initialSet = new Set({
+            // Campos básicos
+            reps: 12,
+            weight: 20,
+            rest: 23,
+            
+            // Campos adicionales
+            tempo: "2-1-2-1",  // Ejemplo de tempo común
+            rpe: 7,            // Valor medio de RPE
+            rpm: 0,
+            rir: 2,            // 2 repeticiones en reserva
+            speed: 0,
+            cadence: 0,
+            distance: 0,
+            height: 0,
+            calories: 0,
+            round: 1,          // Primera ronda por defecto
+
+            // Configuración de renderizado por defecto
+            renderConfig: {
+                campo1: 'reps',
+                campo2: 'weight',
+                campo3: 'rest'
+            }
+        });
+        await initialSet.save();
+
+        // 6. Crear el ejercicio con referencia al set
         const planningExercise = new PlanningExercise({
             exercise: req.body.exerciseId,
-            sets: [] // Los sets se pueden añadir después
+            sets: [initialSet._id]
         });
         
-        console.log('6. Creando nuevo ejercicio:', planningExercise);
+        console.log('7. Creando nuevo ejercicio:', planningExercise);
         await planningExercise.save();
 
-        // 6. Añadir el ejercicio a la sesión
+        // 7. Añadir el ejercicio a la sesión
         session.exercises.push(planningExercise._id);
         await session.save();
 
-        // 7. Poblar el ejercicio para devolverlo en la respuesta
-        await planningExercise.populate('exercise');
+        // 8. Poblar el ejercicio para devolverlo en la respuesta
+        await planningExercise.populate(['exercise', 'sets']);
 
-        console.log('7. Ejercicio añadido exitosamente');
+        console.log('8. Ejercicio añadido exitosamente');
         res.status(200).json({
             status: 'success',
             data: planningExercise
@@ -984,6 +1062,196 @@ const updatePlanning = async (req, res) => {
             message: 'Error al añadir el ejercicio a la sesión',
             error: error.message
         });
+    }
+  };
+
+  // Actualizar la configuración de renderizado de un set
+  const updateSetRenderConfig = async (req, res) => {
+    console.log('=== INICIANDO ACTUALIZACIÓN DE RENDER CONFIG ===');
+    try {
+      const { planningId, weekNumber, day, sessionId, exerciseId, setId } = req.params;
+      const { campo1, campo2, campo3 } = req.body;
+
+      console.log('1. Parámetros recibidos:', {
+        planningId,
+        weekNumber,
+        day,
+        sessionId,
+        exerciseId,
+        setId,
+        camposAActualizar: { campo1, campo2, campo3 }
+      });
+
+      // 1. Encontrar el planning
+      const planning = await Planning.findOne({
+        _id: planningId,
+        trainer: req.user._id
+      }).populate({
+        path: 'plan',
+        populate: {
+          path: 'days',
+          populate: {
+            path: 'sessions',
+            populate: {
+              path: 'exercises',
+              populate: 'sets'
+            }
+          }
+        }
+      });
+
+      console.log('2. Planning encontrado:', planning ? 'Sí' : 'No');
+      if (planning) {
+        console.log('ID del trainer:', planning.trainer);
+        console.log('Número de semanas:', planning.plan.length);
+      }
+
+      if (!planning) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Planning no encontrado'
+        });
+      }
+
+      // 2. Encontrar la semana
+      const week = planning.plan.find(w => w.weekNumber === parseInt(weekNumber));
+      console.log('3. Semana encontrada:', week ? 'Sí' : 'No');
+      if (week) {
+        console.log('Número de la semana:', week.weekNumber);
+      }
+
+      if (!week) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Semana no encontrada'
+        });
+      }
+
+      // 3. Encontrar el día
+      const dayPlan = week.days.get(day);
+      console.log('4. Día encontrado:', dayPlan ? 'Sí' : 'No');
+      if (dayPlan) {
+        console.log('Día de la semana:', day);
+        console.log('Número de sesiones en el día:', dayPlan.sessions.length);
+      }
+
+      if (!dayPlan) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Día no encontrado'
+        });
+      }
+
+      // 4. Encontrar la sesión
+      const session = dayPlan.sessions.find(s => s._id.toString() === sessionId);
+      console.log('5. Sesión encontrada:', session ? 'Sí' : 'No');
+      if (session) {
+        console.log('ID de la sesión:', session._id);
+        console.log('Nombre de la sesión:', session.name);
+        console.log('Número de ejercicios en la sesión:', session.exercises.length);
+      }
+
+      if (!session) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Sesión no encontrada'
+        });
+      }
+
+      // 5. Encontrar el ejercicio
+      const exercise = await PlanningExercise.findOne({
+        _id: exerciseId,
+        'sets': setId
+      }).populate('sets');
+
+      console.log('6. Ejercicio encontrado:', exercise ? 'Sí' : 'No');
+      if (exercise) {
+        console.log('ID del ejercicio:', exercise._id);
+        console.log('Número de sets en el ejercicio:', exercise.sets.length);
+      }
+
+      if (!exercise) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Ejercicio no encontrado'
+        });
+      }
+
+      // 6. Encontrar el set
+      const set = exercise.sets.find(s => s._id.toString() === setId);
+      console.log('7. Set encontrado:', set ? 'Sí' : 'No');
+      if (set) {
+        console.log('ID del set:', set._id);
+        console.log('Configuración actual del set:', set.renderConfig);
+      }
+
+      if (!set) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Set no encontrado'
+        });
+      }
+
+      // Validar que los campos son válidos
+      const validFields = ['reps', 'weight', 'rest', 'tempo', 'rpe', 'rpm', 'rir', 'speed', 'cadence', 'distance', 'height', 'calories', 'round'];
+      
+      console.log('8. Validación de campos:');
+      if (campo1) console.log('campo1:', campo1, 'válido:', validFields.includes(campo1));
+      if (campo2) console.log('campo2:', campo2, 'válido:', validFields.includes(campo2));
+      if (campo3) console.log('campo3:', campo3, 'válido:', validFields.includes(campo3));
+
+      if (campo1 && !validFields.includes(campo1)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Campo1 no válido'
+        });
+      }
+      if (campo2 && !validFields.includes(campo2)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Campo2 no válido'
+        });
+      }
+      if (campo3 && !validFields.includes(campo3)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Campo3 no válido'
+        });
+      }
+
+      // Actualizar solo los campos proporcionados
+      console.log('9. Actualizando campos:');
+      if (campo1) {
+        console.log('Actualizando campo1:', campo1);
+        set.renderConfig.campo1 = campo1;
+      }
+      if (campo2) {
+        console.log('Actualizando campo2:', campo2);
+        set.renderConfig.campo2 = campo2;
+      }
+      if (campo3) {
+        console.log('Actualizando campo3:', campo3);
+        set.renderConfig.campo3 = campo3;
+      }
+
+      await set.save();
+      console.log('10. Set guardado con éxito');
+      console.log('Nueva configuración:', set.renderConfig);
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          renderConfig: set.renderConfig
+        }
+      });
+
+    } catch (error) {
+      console.error('ERROR en updateSetRenderConfig:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Error al actualizar la configuración de renderizado',
+        error: error.message
+      });
     }
   };
 
@@ -1006,6 +1274,133 @@ const updatePlanning = async (req, res) => {
     };
   };
 
+  // Copiar una rutina a un día específico del planning
+  const copyRoutineToDay = async (req, res) => {
+    try {
+      console.log('\n=== 🚀 INICIANDO COPIA DE RUTINA A DÍA ===');
+      const { planningId, weekNumber, day } = req.params;
+      const { routineData } = req.body;
+
+      console.log('Datos recibidos:', {
+        planningId,
+        weekNumber,
+        day,
+        routineData: {
+          exercises: routineData?.exercises?.length || 0
+        }
+      });
+
+      // Validar datos requeridos
+      if (!routineData || !routineData.exercises || !Array.isArray(routineData.exercises)) {
+        return res.status(400).json({
+          message: 'Se requiere un array de ejercicios en routineData.exercises'
+        });
+      }
+
+      // Buscar el planning
+      const planning = await Planning.findOne({
+        _id: planningId,
+        trainer: req.user._id
+      }).populate({
+        path: 'plan',
+        match: { weekNumber: parseInt(weekNumber) }
+      });
+
+      if (!planning) {
+        return res.status(404).json({
+          message: 'Planning no encontrado o no pertenece al trainer'
+        });
+      }
+
+      // Encontrar la semana específica
+      const weekPlan = planning.plan.find(w => w.weekNumber === parseInt(weekNumber));
+      if (!weekPlan) {
+        return res.status(404).json({
+          message: `Semana ${weekNumber} no encontrada en el planning`
+        });
+      }
+
+      // Encontrar o crear el día
+      let dayPlan = await DayPlan.findById(weekPlan.days.get(day));
+      if (!dayPlan) {
+        dayPlan = new DayPlan({
+          day,
+          fecha: new Date(), // Ajustar según necesidades
+          sessions: []
+        });
+        await dayPlan.save();
+        weekPlan.days.set(day, dayPlan._id);
+        await weekPlan.save();
+      }
+
+      // Crear la sesión con los ejercicios
+      const session = new Session({
+        name: routineData.name || `Sesión ${dayPlan.sessions.length + 1}`,
+        tipo: routineData.tipo || 'Normal',
+        rondas: routineData.rondas || 1,
+        exercises: []
+      });
+
+      // Procesar cada ejercicio
+      for (const exerciseData of routineData.exercises) {
+        const planningExercise = new PlanningExercise({
+          exercise: exerciseData.exerciseId,
+          sets: []
+        });
+
+        // Crear los sets para el ejercicio
+        for (const setData of exerciseData.sets) {
+          const set = new Set({
+            reps: setData.reps,
+            weight: setData.weight,
+            rest: setData.rest,
+            rpe: setData.rpe,
+            rir: setData.rir,
+            tempo: setData.tempo,
+            completed: false
+          });
+          await set.save();
+          planningExercise.sets.push(set._id);
+        }
+
+        await planningExercise.save();
+        session.exercises.push(planningExercise._id);
+      }
+
+      await session.save();
+      dayPlan.sessions.push(session._id);
+      await dayPlan.save();
+
+      // Obtener la sesión populada para la respuesta
+      const populatedSession = await Session.findById(session._id)
+        .populate({
+          path: 'exercises',
+          populate: [{
+            path: 'exercise',
+            select: 'nombre grupoMuscular descripcion equipo imgUrl'
+          }, {
+            path: 'sets'
+          }]
+        });
+
+      console.log('=== ✨ RUTINA COPIADA EXITOSAMENTE ===');
+      res.status(201).json({
+        message: 'Rutina copiada exitosamente',
+        data: {
+          session: populatedSession,
+          day: dayPlan
+        }
+      });
+
+    } catch (error) {
+      console.error("❌ copyRoutineToDay - Error:", error);
+      res.status(500).json({
+        message: 'Error al copiar la rutina',
+        error: error.message
+      });
+    }
+  };
+
   module.exports = {
     getAllPlannings,
     getPlanningById,
@@ -1017,8 +1412,10 @@ const updatePlanning = async (req, res) => {
     getCheckInsForSet,
     addNextWeek,
     createSession,
-    deleteSession,
     createExercise,
+    deleteSession,
     updatePlanningExercise,
     addExerciseToSession,
+    updateSetRenderConfig,
+    copyRoutineToDay
   };

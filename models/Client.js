@@ -1,6 +1,31 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
+// Subesquema para las redes sociales
+const socialMediaSchema = new mongoose.Schema({
+  platform: {
+    type: String,
+    enum: ['instagram', 'facebook', 'twitter'],
+    required: true
+  },
+  username: {
+    type: String,
+    required: true
+  }
+});
+
+// Subesquema para los tags
+const tagSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true
+  },
+  color: {
+    type: String,
+    required: true
+  }
+});
+
 // Subesquema para las notas
 const notaSchema = new mongoose.Schema({
   texto: {
@@ -26,37 +51,83 @@ const notaSchema = new mongoose.Schema({
 const direccionSchema = new mongoose.Schema({
   calle: {
     type: String,
-    required: [true, 'La calle es obligatoria']
+    default: ''
   },
   numero: {
-    type: String
+    type: String,
+    default: ''
   },
   piso: {
-    type: String
+    type: String,
+    default: ''
   },
   codigoPostal: {
-    type: String
+    type: String,
+    default: ''
   },
   ciudad: {
     type: String,
-    required: [true, 'La ciudad es obligatoria']
+    default: ''
   },
   provincia: {
     type: String,
-    required: [true, 'La provincia es obligatoria']
+    default: ''
   }
 });
 
 const ClientSchema = new Schema({
-  nombre: { type: String, required: true },
-  email: { type: String, unique: true, required: true },
-  password: { type: String, required: true }, // Encriptar antes de guardar
-  planesDePago: [{ type: Schema.Types.ObjectId, ref: 'PaymentPlan' }],
-  servicios: { type: [{ type: Schema.Types.ObjectId, ref: 'Service' }], default: [] },
+  // Información básica
+  nombre: { 
+    type: String, 
+    required: true 
+  },
+  email: { 
+    type: String, 
+    unique: true, 
+    required: true 
+  },
+  password: { 
+    type: String, 
+    required: true 
+  },
+  fechaNacimiento: { 
+    type: Date 
+  },
+  genero: {
+    type: String,
+    enum: ['Masculino', 'Femenino', 'Otro', 'Prefiero no decirlo']
+  },
+  telefono: {
+    type: String
+  },
 
-  transacciones: [{ type: Schema.Types.ObjectId, ref: 'Transaction' }],
-  fechaRegistro: { type: Date, default: Date.now },
-  trainer: { type: Schema.Types.ObjectId, ref: 'Trainer', required: true }, // Referencia al entrenador
+  // Información de contacto y redes sociales
+  direccion: { 
+    type: direccionSchema, 
+    default: () => ({}) 
+  },
+  redesSociales: [socialMediaSchema],
+
+  // Información de pago y suscripción
+  stripeCustomerId: {
+    type: String,
+    sparse: true
+  },
+  subscription: {
+    id: String,
+    status: {
+      type: String,
+      enum: ['active', 'past_due', 'unpaid', 'canceled', 'incomplete', 'incomplete_expired', 'trialing', 'paused']
+    },
+    priceId: String,
+    currentPeriodEnd: Date
+  },
+  metodoPagoPredeterminado: {
+    type: String,
+    sparse: true
+  },
+
+  // Información fisiológica
   altura: {
     type: Number,
     min: [0, 'La altura debe ser mayor que 0'],
@@ -67,6 +138,11 @@ const ClientSchema = new Schema({
     min: [0, 'El peso debe ser mayor que 0'],
     max: [500, 'El peso debe ser menor que 500']
   },
+  condicionesMedicas: [{
+    type: String
+  }],
+
+  // Nivel de actividad y estado
   nivelActividad: {
     type: String,
     enum: ['Sedentario', 'Ligero', 'Moderado', 'Activo', 'Muy Activo'],
@@ -77,16 +153,58 @@ const ClientSchema = new Schema({
     enum: ['Activo', 'Inactivo', 'Pendiente', 'Suspendido'],
     default: 'Pendiente'
   },
-  direccion: direccionSchema,
-  notas: [notaSchema], // Agregando el array de notas al esquema del cliente
+
+  // Tags y notas
+  tags: [tagSchema],
+  notas: [notaSchema],
+
+  // Referencias a otros modelos
+  trainer: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'Trainer', 
+    required: true 
+  },
+  planesDePago: [{ 
+    type: Schema.Types.ObjectId, 
+    ref: 'PaymentPlan' 
+  }],
+  servicios: { 
+    type: [{ 
+      type: Schema.Types.ObjectId, 
+      ref: 'Service' 
+    }], 
+    default: [] 
+  },
+  transacciones: [{ 
+    type: Schema.Types.ObjectId, 
+    ref: 'Transaction' 
+  }],
   eventos: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Event'
   }],
-  plannings: [{ type: Schema.Types.ObjectId, ref: 'Planning' }],
-  planningActivo: { type: Schema.Types.ObjectId, ref: 'Planning' },
-  dietas: [{ type: Schema.Types.ObjectId, ref: 'Dieta' }],
-  dietaActiva: { type: Schema.Types.ObjectId, ref: 'Dieta' }
+  plannings: [{ 
+    type: Schema.Types.ObjectId, 
+    ref: 'Planning' 
+  }],
+  planningActivo: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'Planning' 
+  },
+  dietas: [{ 
+    type: Schema.Types.ObjectId, 
+    ref: 'Dieta' 
+  }],
+  dietaActiva: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'Dieta' 
+  },
+
+  // Campos de auditoría
+  fechaRegistro: { 
+    type: Date, 
+    default: Date.now 
+  }
 }, {
   timestamps: true
 });

@@ -7,6 +7,7 @@ const {
   obtenerCuestionarioPorId,
   actualizarCuestionario,
   eliminarCuestionario,
+  agregarClientes,
 } = require('../controllers/cuestionarioController');
 const { verificarToken, verificarRol } = require('../middlewares/authMiddleware');
 
@@ -30,5 +31,9 @@ router.put('/:id', verificarToken, verificarRol('Trainer'), actualizarCuestionar
 // Ruta para eliminar un cuestionario por ID
 // Solo entrenadores pueden eliminar
 router.delete('/:id', verificarToken, verificarRol('Trainer'), eliminarCuestionario);
+
+// Ruta para agregar clientes a un cuestionario
+// Solo entrenadores pueden agregar clientes
+router.post('/:id/clientes', verificarToken, verificarRol('trainer'), agregarClientes);
 
 module.exports = router;

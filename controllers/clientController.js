@@ -9,6 +9,8 @@ const Service = require('../models/Service');
 const { Planning } = require('../models/Planning'); // Importar solo el modelo Planning
 const { Dieta } = require('../models/Dieta');
 const { validationResult } = require('express-validator');
+const TrainerClientChat = require('../models/TrainerClientChat');
+const Message = require('../models/Message');
 
 // Definir el secreto JWT directamente en el controlador (Solo para pruebas)
 const JWT_SECRET = 'tu_secreto_super_seguro'; // Reemplaza con una cadena más segura
@@ -32,7 +34,7 @@ exports.registrarCliente = async (req, res) => {
     // Verificar si el cliente ya existe
     let cliente = await Client.findOne({ email });
     if (cliente) {
-      console.log('registrarCliente - Email en uso:', email); // Log si el correo ya existe
+      console.log('registrarCliente - Email en uso:', email);
       return res.status(400).json({ mensaje: 'El cliente ya está registrado' });
     }
 
@@ -41,7 +43,31 @@ exports.registrarCliente = async (req, res) => {
       nombre,
       email,
       password,
-      trainer: req.user.id // ID del entrenador autenticado
+      trainer: req.user.id,
+      // Información básica
+      fechaNacimiento: null,
+      genero: 'Prefiero no decirlo',
+      telefono: '',
+      
+      // Información de contacto
+      direccion: {
+        calle: '',
+        numero: '',
+        piso: '',
+        codigoPostal: '',
+        ciudad: '',
+        provincia: ''
+      },
+      
+      // Información fisiológica
+      altura: 0,
+      peso: 0,
+      condicionesMedicas: [],
+      
+      // Arrays inicializados
+      redesSociales: [],
+      tags: [],
+      notas: []
     });
     console.log('registrarCliente - Nuevo cliente creado:', cliente);
 
@@ -58,9 +84,38 @@ exports.registrarCliente = async (req, res) => {
     // Actualizar la lista de clientes del entrenador
     await Trainer.findByIdAndUpdate(
       req.user.id,
-      { $push: { clientes: cliente._id } } // Agregar cliente al entrenador
+      { $push: { clientes: cliente._id } }
     );
     console.log('registrarCliente - Cliente agregado al entrenador:', req.user.id);
+
+    // Crear chat y enviar mensaje de bienvenida
+    try {
+      const chat = new TrainerClientChat({
+        trainer: req.user.id,
+        cliente: cliente._id
+      });
+      await chat.save();
+
+      // Crear mensaje de bienvenida
+      const mensaje = new Message({
+        conversacion: chat._id,
+        emisor: req.user.id,
+        receptor: cliente._id,
+        contenido: `¡Bienvenido/a ${cliente.nombre}! 👋 Soy tu entrenador personal y estoy aquí para ayudarte a alcanzar tus objetivos. No dudes en escribirme cualquier duda o consulta que tengas.`,
+        tipo: 'texto'
+      });
+      await mensaje.save();
+
+      // Actualizar el último mensaje del chat
+      chat.ultimoMensaje = mensaje._id;
+      chat.fechaUltimoMensaje = new Date();
+      await chat.save();
+
+      console.log('registrarCliente - Chat y mensaje de bienvenida creados');
+    } catch (chatError) {
+      console.error('Error al crear chat y mensaje de bienvenida:', chatError);
+      // No detenemos el registro por un error en el chat
+    }
 
     // Crear y firmar el JWT
     const payload = {
@@ -71,14 +126,14 @@ exports.registrarCliente = async (req, res) => {
 
     const token = jwt.sign(
       payload,
-      JWT_SECRET, // Uso del secreto definido directamente
-      { expiresIn: JWT_EXPIRES_IN } // Uso del tiempo de expiración definido directamente
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
     );
     console.log('registrarCliente - Token generado:', token);
 
     res.status(201).json({ token });
   } catch (error) {
-    console.error("registrarCliente - Error al registrar cliente:", error); // Log para ver el error
+    console.error("registrarCliente - Error al registrar cliente:", error);
     res.status(500).json({ mensaje: 'Error en el servidor', error });
   }
 };
@@ -98,7 +153,7 @@ exports.obtenerClientes = async (req, res) => {
 // Obtener perfil del cliente autenticado
 exports.obtenerPerfilCliente = async (req, res) => {
   try {
-    console.log("obtenerPerfilCliente - ID del cliente:", req.user.id);  // Verifica que `req.user.id` esté presente
+    console.log("obtenerPerfilCliente - ID del cliente:", req.user.id);  
     const cliente = await Client.findById(req.user.id)
       .select('-password')
       .populate('planesDePago transacciones');
@@ -268,6 +323,198 @@ exports.actualizarCliente = async (req, res) => {
       msg: 'Error al actualizar cliente', 
       error: error.message,
       detalles: error.errors ? error.errors : undefined
+    });
+  }
+};
+
+// Obtener información personal del cliente
+exports.obtenerInformacionPersonal = async (req, res) => {
+  try {
+    const cliente = await Client.findById(req.params.clientId)
+      .select('nombre email fechaNacimiento genero telefono direccion altura peso condicionesMedicas redesSociales');
+    
+    if (!cliente) {
+      return res.status(404).json({ msg: 'Cliente no encontrado' });
+    }
+
+    res.json(cliente);
+  } catch (error) {
+    console.error('Error al obtener información personal:', error);
+    res.status(500).send('Error del servidor');
+  }
+};
+
+// Actualizar información básica del cliente
+exports.actualizarInformacionBasica = async (req, res) => {
+  try {
+    const { nombre, email, fechaNacimiento, genero, telefono } = req.body;
+    
+    const cliente = await Client.findById(req.params.clientId);
+    if (!cliente) {
+      return res.status(404).json({ msg: 'Cliente no encontrado' });
+    }
+
+    cliente.nombre = nombre || cliente.nombre;
+    cliente.email = email || cliente.email;
+    cliente.fechaNacimiento = fechaNacimiento || cliente.fechaNacimiento;
+    cliente.genero = genero || cliente.genero;
+    cliente.telefono = telefono || cliente.telefono;
+
+    await cliente.save();
+    res.json(cliente);
+  } catch (error) {
+    console.error('Error al actualizar información básica:', error);
+    res.status(500).send('Error del servidor');
+  }
+};
+
+// Actualizar información física del cliente
+exports.actualizarInformacionFisica = async (req, res) => {
+  try {
+    const { altura, peso } = req.body;
+    
+    const cliente = await Client.findById(req.params.clientId);
+    if (!cliente) {
+      return res.status(404).json({ msg: 'Cliente no encontrado' });
+    }
+
+    cliente.altura = altura || cliente.altura;
+    cliente.peso = peso || cliente.peso;
+
+    await cliente.save();
+    res.json(cliente);
+  } catch (error) {
+    console.error('Error al actualizar información física:', error);
+    res.status(500).send('Error del servidor');
+  }
+};
+
+// Gestionar condiciones médicas
+exports.gestionarCondicionesMedicas = async (req, res) => {
+  try {
+    const { condicionesMedicas } = req.body;
+    
+    const cliente = await Client.findById(req.params.clientId);
+    if (!cliente) {
+      return res.status(404).json({ msg: 'Cliente no encontrado' });
+    }
+
+    cliente.condicionesMedicas = condicionesMedicas;
+    await cliente.save();
+    res.json(cliente);
+  } catch (error) {
+    console.error('Error al gestionar condiciones médicas:', error);
+    res.status(500).send('Error del servidor');
+  }
+};
+
+// Gestionar redes sociales
+exports.gestionarRedesSociales = async (req, res) => {
+  try {
+    const { redesSociales } = req.body;
+    
+    const cliente = await Client.findById(req.params.clientId);
+    if (!cliente) {
+      return res.status(404).json({ msg: 'Cliente no encontrado' });
+    }
+
+    cliente.redesSociales = redesSociales;
+    await cliente.save();
+    res.json(cliente);
+  } catch (error) {
+    console.error('Error al gestionar redes sociales:', error);
+    res.status(500).send('Error del servidor');
+  }
+};
+
+// Actualizar información de contacto
+exports.actualizarContacto = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { direccion, redesSociales } = req.body;
+
+    console.log('actualizarContacto - Datos recibidos:', { clientId, direccion, redesSociales });
+
+    const cliente = await Client.findOne({ _id: clientId, trainer: req.user.id });
+    if (!cliente) {
+      return res.status(404).json({ mensaje: 'Cliente no encontrado' });
+    }
+
+    if (direccion) cliente.direccion = direccion;
+    if (redesSociales) cliente.redesSociales = redesSociales;
+
+    await cliente.save();
+
+    res.json({
+      mensaje: 'Información de contacto actualizada correctamente',
+      cliente
+    });
+  } catch (error) {
+    console.error('Error en actualizarContacto:', error);
+    res.status(500).json({
+      mensaje: 'Error al actualizar la información de contacto',
+      error: error.message
+    });
+  }
+};
+
+// Actualizar información fisiológica
+exports.actualizarInfoFisiologica = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { altura, peso, condicionesMedicas } = req.body;
+
+    console.log('actualizarInfoFisiologica - Datos recibidos:', { clientId, altura, peso, condicionesMedicas });
+
+    const cliente = await Client.findOne({ _id: clientId, trainer: req.user.id });
+    if (!cliente) {
+      return res.status(404).json({ mensaje: 'Cliente no encontrado' });
+    }
+
+    if (altura) cliente.altura = altura;
+    if (peso) cliente.peso = peso;
+    if (condicionesMedicas) cliente.condicionesMedicas = condicionesMedicas;
+
+    await cliente.save();
+
+    res.json({
+      mensaje: 'Información fisiológica actualizada correctamente',
+      cliente
+    });
+  } catch (error) {
+    console.error('Error en actualizarInfoFisiologica:', error);
+    res.status(500).json({
+      mensaje: 'Error al actualizar la información fisiológica',
+      error: error.message
+    });
+  }
+};
+
+// Gestionar tags del cliente
+exports.gestionarTags = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { tags } = req.body;
+
+    console.log('gestionarTags - Datos recibidos:', { clientId, tags });
+
+    const cliente = await Client.findOne({ _id: clientId, trainer: req.user.id });
+    if (!cliente) {
+      return res.status(404).json({ mensaje: 'Cliente no encontrado' });
+    }
+
+    cliente.tags = tags;
+    await cliente.save();
+
+    res.json({
+      mensaje: 'Tags actualizados correctamente',
+      cliente
+    });
+  } catch (error) {
+    console.error('Error en gestionarTags:', error);
+    res.status(500).json({
+      mensaje: 'Error al actualizar los tags',
+      error: error.message
     });
   }
 };

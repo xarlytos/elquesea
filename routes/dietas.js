@@ -68,6 +68,14 @@ router.put('/:id/dias/:fecha/comidas/:comidaId', [
   check('ingredientes.*.grasas').optional().isNumeric().toFloat(),
 ], dietaController.actualizarComida);
 
+// Asignar una dieta a un cliente
+router.post('/:dietaId/assign', [
+  verificarToken,
+  verificarRol('trainer'),
+  check('clientId', 'El ID del cliente es requerido').notEmpty(),
+  check('clientId', 'El ID del cliente debe ser un ID válido').isMongoId(),
+], dietaController.assignDietToClient);
+
 // Eliminar una dieta por ID
 router.delete('/:id', dietaController.eliminarDieta);
 

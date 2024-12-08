@@ -1,7 +1,36 @@
 // controllers/cuestionarioController.js
 const Cuestionario = require('../models/Cuestionario');
-const Client = require('../models/Client'); // Asegúrate de que existe este modelo
-const Trainer = require('../models/Trainer'); // Asegúrate de que existe este modelo
+const Client = require('../models/Client');
+const Trainer = require('../models/Trainer');
+
+// Validar preguntas
+const validarPreguntas = (preguntas) => {
+  if (!Array.isArray(preguntas)) {
+    throw new Error('Las preguntas deben ser un array');
+  }
+
+  preguntas.forEach((pregunta, index) => {
+    if (!pregunta.texto || !pregunta.categoria || !pregunta.tipo) {
+      throw new Error(`La pregunta ${index + 1} debe tener texto, categoria y tipo`);
+    }
+
+    if (!['texto', 'numero', 'opciones', 'boolean'].includes(pregunta.tipo)) {
+      throw new Error(`El tipo '${pregunta.tipo}' en la pregunta ${index + 1} no es válido`);
+    }
+
+    if (pregunta.tipo === 'opciones') {
+      if (!pregunta.opciones || !Array.isArray(pregunta.opciones) || pregunta.opciones.length === 0) {
+        throw new Error(`La pregunta ${index + 1} es de tipo opciones pero no tiene opciones válidas`);
+      }
+
+      pregunta.opciones.forEach((opcion, opIndex) => {
+        if (!opcion.texto || !opcion.valor) {
+          throw new Error(`La opción ${opIndex + 1} de la pregunta ${index + 1} debe tener texto y valor`);
+        }
+      });
+    }
+  });
+};
 
 // Crear un nuevo cuestionario
 exports.crearCuestionario = async (req, res) => {
@@ -9,7 +38,15 @@ exports.crearCuestionario = async (req, res) => {
   console.log('crearCuestionario - Datos recibidos:', req.body);
 
   try {
-    const { titulo, descripcion, frecuencia, preguntas, entrenador } = req.body;
+    const { titulo, descripcion, frecuencia, preguntas } = req.body;
+    const entrenador = req.user._id; // Obtener el ID del entrenador del token
+
+    // Validar preguntas
+    try {
+      validarPreguntas(preguntas);
+    } catch (error) {
+      return res.status(400).json({ mensaje: error.message });
+    }
 
     console.log('crearCuestionario - Título:', titulo);
     console.log('crearCuestionario - Descripción:', descripcion);
@@ -35,9 +72,6 @@ exports.crearCuestionario = async (req, res) => {
       entrenador,
     });
 
-    console.log('crearCuestionario - Nuevo cuestionario creado:', nuevoCuestionario);
-
-    // Guardar en la base de datos
     const cuestionarioGuardado = await nuevoCuestionario.save();
     console.log('crearCuestionario - Cuestionario guardado exitosamente:', cuestionarioGuardado);
 
@@ -94,17 +128,26 @@ exports.actualizarCuestionario = async (req, res) => {
   console.log('actualizarCuestionario - Datos recibidos:', req.body);
 
   try {
-    const { titulo, descripcion, frecuencia, preguntas, entrenador, estado, completion } = req.body;
+    const { titulo, descripcion, frecuencia, preguntas, estado, completion } = req.body;
+    const entrenador = req.user._id; // Obtener el ID del entrenador del token
 
-    // Verificar que el entrenador existe, si se actualiza
-    if (entrenador) {
-      console.log('actualizarCuestionario - Verificando existencia del entrenador...');
-      const entrenadorExiste = await Trainer.findById(entrenador);
-      if (!entrenadorExiste) {
-        console.log('actualizarCuestionario - Entrenador no encontrado');
-        return res.status(404).json({ mensaje: 'Entrenador no encontrado' });
+    // Si hay preguntas, validarlas
+    if (preguntas) {
+      try {
+        validarPreguntas(preguntas);
+      } catch (error) {
+        return res.status(400).json({ mensaje: error.message });
       }
-      console.log('actualizarCuestionario - Entrenador verificado:', entrenadorExiste);
+    }
+
+    // Verificar que el cuestionario pertenece al entrenador
+    const cuestionarioExistente = await Cuestionario.findById(id);
+    if (!cuestionarioExistente) {
+      return res.status(404).json({ mensaje: 'Cuestionario no encontrado' });
+    }
+    
+    if (cuestionarioExistente.entrenador.toString() !== entrenador.toString()) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para modificar este cuestionario' });
     }
 
     // Preparar los datos actualizados
@@ -113,17 +156,17 @@ exports.actualizarCuestionario = async (req, res) => {
       descripcion,
       frecuencia,
       preguntas,
-      entrenador,
       estado,
       completion,
       lastUpdate: Date.now(),
     };
-    console.log('actualizarCuestionario - Datos a actualizar:', datosActualizados);
 
     // Actualizar el cuestionario
-    const cuestionarioActualizado = await Cuestionario.findByIdAndUpdate(id, datosActualizados, { new: true, runValidators: true })
-      .populate('clientes')
-      .populate('entrenador');
+    const cuestionarioActualizado = await Cuestionario.findByIdAndUpdate(
+      id,
+      datosActualizados,
+      { new: true, runValidators: true }
+    ).populate('clientes').populate('entrenador');
 
     if (!cuestionarioActualizado) {
       console.log('actualizarCuestionario - Cuestionario no encontrado para actualizar');
@@ -134,6 +177,50 @@ exports.actualizarCuestionario = async (req, res) => {
     res.status(200).json(cuestionarioActualizado);
   } catch (error) {
     console.error(`actualizarCuestionario - Error al actualizar el cuestionario con ID ${id}:`, error);
+    res.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+};
+
+// Agregar clientes al cuestionario
+exports.agregarClientes = async (req, res) => {
+  const { id } = req.params;
+  const { clienteIds } = req.body;
+  console.log(`agregarClientes - Inicio de agregar clientes al cuestionario con ID: ${id}`);
+  console.log('agregarClientes - IDs de clientes a agregar:', clienteIds);
+
+  try {
+    // Verificar que el cuestionario existe
+    const cuestionario = await Cuestionario.findById(id);
+    if (!cuestionario) {
+      console.log('agregarClientes - Cuestionario no encontrado');
+      return res.status(404).json({ mensaje: 'Cuestionario no encontrado' });
+    }
+
+    // Verificar que todos los clientes existen
+    const clientesExistentes = await Client.find({ _id: { $in: clienteIds } });
+    if (clientesExistentes.length !== clienteIds.length) {
+      console.log('agregarClientes - No se encontraron todos los clientes');
+      return res.status(404).json({ mensaje: 'Uno o más clientes no fueron encontrados' });
+    }
+
+    // Agregar los nuevos clientes al array de clientes (evitando duplicados)
+    const clientesActualizados = [...new Set([...cuestionario.clientes.map(id => id.toString()), ...clienteIds])];
+    
+    // Actualizar directamente usando findByIdAndUpdate para evitar validaciones del esquema
+    const cuestionarioActualizado = await Cuestionario.findByIdAndUpdate(
+      id,
+      { $set: { clientes: clientesActualizados } },
+      { new: true }
+    ).populate('clientes').populate('entrenador');
+
+    if (!cuestionarioActualizado) {
+      return res.status(404).json({ mensaje: 'Error al actualizar el cuestionario' });
+    }
+
+    console.log('agregarClientes - Clientes agregados exitosamente:', cuestionarioActualizado);
+    res.status(200).json(cuestionarioActualizado);
+  } catch (error) {
+    console.error(`agregarClientes - Error al agregar clientes al cuestionario con ID ${id}:`, error);
     res.status(500).json({ mensaje: 'Error interno del servidor' });
   }
 };

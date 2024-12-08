@@ -4,89 +4,69 @@ const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
 // Crear un evento
-exports.createEvent = async (req, res) => {
-  try {
-    const { name, type, date, trainer, client, lead } = req.body;
+exports.createEvent = catchAsync(async (req, res, next) => {
+  console.log('⭐ Iniciando creación de nuevo evento');
+  console.log('📝 Datos recibidos:', JSON.stringify(req.body, null, 2));
 
-    const newEvent = new Event({ name, type, date, trainer, client, lead });
-    const savedEvent = await newEvent.save();
+  const {
+    title,
+    description,
+    startDate,
+    endDate,
+    type,
+    origin,
+    isWorkRelated,
+    trainer,
+    client,
+    relatedService,
+    relatedPaymentPlan,
+    relatedRoutinePlan,
+    alerts
+  } = req.body;
 
-    res.status(201).json(savedEvent);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  // Validar que la fecha de inicio sea anterior a la fecha de fin
+  if (new Date(startDate) >= new Date(endDate)) {
+    console.log('❌ Error: Fecha de inicio posterior o igual a fecha de fin');
+    return next(new AppError('La fecha de inicio debe ser anterior a la fecha de fin', 400));
   }
-};
 
-// Obtener todos los eventos
-exports.getAllEvents = async (req, res) => {
-  try {
-    const events = await Event.find()
-      .populate('trainer', 'name')
-      .populate('client', 'name')
-      .populate('lead', 'name');
-
-    res.status(200).json(events);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Obtener un evento por ID
-exports.getEventById = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const event = await Event.findById(id)
-      .populate('trainer', 'name')
-      .populate('client', 'name')
-      .populate('lead', 'name');
-
-    if (!event) {
-      return res.status(404).json({ message: 'Evento no encontrado' });
+  // Validar referencias si existen
+  if (client) {
+    console.log(`🔍 Verificando cliente ID: ${client}`);
+    const clientExists = await Client.findById(client);
+    if (!clientExists) {
+      console.log('❌ Error: Cliente no encontrado');
+      return next(new AppError('Cliente no encontrado', 404));
     }
-
-    res.status(200).json(event);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Crear un evento para un cliente
-exports.createClientEvent = catchAsync(async (req, res, next) => {
-  const { title, description, date, time, clientId } = req.body;
-
-  if (!clientId) {
-    return next(new AppError('El ID del cliente es requerido', 400));
-  }
-
-  // Verificar que el cliente existe
-  const client = await Client.findById(clientId);
-  if (!client) {
-    return next(new AppError('No se encontró el cliente especificado', 404));
-  }
-
-  // Validar que la fecha y hora sean futuras
-  const eventDateTime = new Date(`${date}T${time}`);
-  if (eventDateTime < new Date()) {
-    return next(new AppError('La fecha y hora del evento deben ser futuras', 400));
+    console.log('✅ Cliente verificado');
   }
 
   const newEvent = await Event.create({
-    name: title, // Usando el título como nombre
+    title,
     description,
-    date: eventDateTime,
-    client: clientId,
-    type: 'Meeting', // Usando un tipo válido del enum
-    status: 'scheduled'
+    startDate,
+    endDate,
+    type,
+    origin,
+    isWorkRelated,
+    trainer,
+    client,
+    relatedService,
+    relatedPaymentPlan,
+    relatedRoutinePlan,
+    alerts
   });
 
-  // Añadir el evento al array de eventos del cliente
-  client.eventos.push(newEvent._id);
-  await client.save();
+  console.log(`✅ Evento creado con éxito. ID: ${newEvent._id}`);
 
   const populatedEvent = await Event.findById(newEvent._id)
-    .populate('client', 'name email phone');
+    .populate('trainer', 'name email')
+    .populate('client', 'name email')
+    .populate('relatedService')
+    .populate('relatedPaymentPlan')
+    .populate('relatedRoutinePlan');
 
+  console.log('📤 Enviando respuesta con evento populado');
   res.status(201).json({
     status: 'success',
     data: {
@@ -95,39 +75,228 @@ exports.createClientEvent = catchAsync(async (req, res, next) => {
   });
 });
 
-// Obtener eventos de un cliente específico
-exports.getClientEvents = async (req, res) => {
-  try {
-    const { clientId } = req.params;
+// Obtener todos los eventos
+exports.getAllEvents = catchAsync(async (req, res) => {
+  console.log('⭐ Obteniendo lista de eventos');
+  console.log('🔍 Filtros aplicados:', JSON.stringify(req.query, null, 2));
 
-    // Verificar que el ID sea válido
-    if (!clientId || !require('mongoose').Types.ObjectId.isValid(clientId)) {
-      return res.status(400).json({ message: 'ID de cliente inválido' });
-    }
+  const query = { ...req.query };
+  
+  // Filtrado básico
+  const excludedFields = ['page', 'sort', 'limit', 'fields'];
+  excludedFields.forEach(field => delete query[field]);
 
-    // Verificar que el cliente existe
-    const client = await Client.findById(clientId);
-    if (!client) {
-      return res.status(404).json({ message: 'Cliente no encontrado' });
-    }
-
-    // Obtener todos los eventos del cliente
-    const events = await Event.find({ client: clientId })
-      .populate('trainer', 'name email')
-      .sort({ date: -1 }); // Ordenar por fecha, más recientes primero
-
-    res.status(200).json({
-      status: 'success',
-      results: events.length,
-      data: {
-        events
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      status: 'error',
-      message: 'Error al obtener los eventos del cliente',
-      error: error.message 
-    });
+  // Filtrado por fecha
+  if (query.startDate) {
+    console.log(`📅 Filtrando eventos desde: ${query.startDate}`);
+    query.startDate = { $gte: new Date(query.startDate) };
   }
-};
+  if (query.endDate) {
+    console.log(`📅 Filtrando eventos hasta: ${query.endDate}`);
+    query.endDate = { $lte: new Date(query.endDate) };
+  }
+
+  const events = await Event.find(query)
+    .populate('trainer', 'name email')
+    .populate('client', 'name email')
+    .populate('relatedService')
+    .populate('relatedPaymentPlan')
+    .populate('relatedRoutinePlan')
+    .sort({ startDate: 1 });
+
+  console.log(`✅ Encontrados ${events.length} eventos`);
+  res.status(200).json({
+    status: 'success',
+    results: events.length,
+    data: {
+      events
+    }
+  });
+});
+
+// Obtener un evento por ID
+exports.getEventById = catchAsync(async (req, res, next) => {
+  console.log(`⭐ Buscando evento con ID: ${req.params.id}`);
+
+  const event = await Event.findById(req.params.id)
+    .populate('trainer', 'name email')
+    .populate('client', 'name email')
+    .populate('relatedService')
+    .populate('relatedPaymentPlan')
+    .populate('relatedRoutinePlan');
+
+  if (!event) {
+    console.log('❌ Evento no encontrado');
+    return next(new AppError('No se encontró el evento con ese ID', 404));
+  }
+
+  console.log('✅ Evento encontrado');
+  res.status(200).json({
+    status: 'success',
+    data: {
+      event
+    }
+  });
+});
+
+// Actualizar un evento
+exports.updateEvent = catchAsync(async (req, res, next) => {
+  console.log(`⭐ Actualizando evento ID: ${req.params.id}`);
+  console.log('📝 Datos de actualización:', JSON.stringify(req.body, null, 2));
+
+  const {
+    title,
+    description,
+    startDate,
+    endDate,
+    type,
+    origin,
+    isWorkRelated,
+    trainer,
+    client,
+    relatedService,
+    relatedPaymentPlan,
+    relatedRoutinePlan,
+    alerts
+  } = req.body;
+
+  // Validar que la fecha de inicio sea anterior a la fecha de fin si se proporcionan ambas
+  if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
+    console.log('❌ Error: Fechas inválidas');
+    return next(new AppError('La fecha de inicio debe ser anterior a la fecha de fin', 400));
+  }
+
+  const event = await Event.findByIdAndUpdate(
+    req.params.id,
+    {
+      title,
+      description,
+      startDate,
+      endDate,
+      type,
+      origin,
+      isWorkRelated,
+      trainer,
+      client,
+      relatedService,
+      relatedPaymentPlan,
+      relatedRoutinePlan,
+      alerts
+    },
+    {
+      new: true,
+      runValidators: true
+    }
+  )
+  .populate('trainer', 'name email')
+  .populate('client', 'name email')
+  .populate('relatedService')
+  .populate('relatedPaymentPlan')
+  .populate('relatedRoutinePlan');
+
+  if (!event) {
+    console.log('❌ Evento no encontrado para actualizar');
+    return next(new AppError('No se encontró el evento con ese ID', 404));
+  }
+
+  console.log('✅ Evento actualizado con éxito');
+  res.status(200).json({
+    status: 'success',
+    data: {
+      event
+    }
+  });
+});
+
+// Eliminar un evento
+exports.deleteEvent = catchAsync(async (req, res, next) => {
+  console.log(`⭐ Eliminando evento ID: ${req.params.id}`);
+
+  const event = await Event.findByIdAndDelete(req.params.id);
+
+  if (!event) {
+    console.log('❌ Evento no encontrado para eliminar');
+    return next(new AppError('No se encontró el evento con ese ID', 404));
+  }
+
+  console.log('✅ Evento eliminado con éxito');
+  res.status(204).json({
+    status: 'success',
+    data: null
+  });
+});
+
+// Obtener eventos por cliente
+exports.getEventsByClient = catchAsync(async (req, res, next) => {
+  const { clientId } = req.params;
+  console.log(`⭐ Buscando eventos del cliente ID: ${clientId}`);
+
+  const events = await Event.find({ client: clientId })
+    .populate('trainer', 'name email')
+    .populate('relatedService')
+    .populate('relatedPaymentPlan')
+    .populate('relatedRoutinePlan')
+    .sort({ startDate: 1 });
+
+  console.log(`✅ Encontrados ${events.length} eventos para el cliente`);
+  res.status(200).json({
+    status: 'success',
+    results: events.length,
+    data: {
+      events
+    }
+  });
+});
+
+// Obtener eventos por trainer
+exports.getEventsByTrainer = catchAsync(async (req, res, next) => {
+  const { trainerId } = req.params;
+  console.log(`⭐ Buscando eventos del trainer ID: ${trainerId}`);
+
+  const events = await Event.find({ trainer: trainerId })
+    .populate('client', 'name email')
+    .populate('relatedService')
+    .populate('relatedPaymentPlan')
+    .populate('relatedRoutinePlan')
+    .sort({ startDate: 1 });
+
+  console.log(`✅ Encontrados ${events.length} eventos para el trainer`);
+  res.status(200).json({
+    status: 'success',
+    results: events.length,
+    data: {
+      events
+    }
+  });
+});
+
+// Obtener eventos por rango de fechas
+exports.getEventsByDateRange = catchAsync(async (req, res, next) => {
+  const { startDate, endDate } = req.query;
+  console.log(`⭐ Buscando eventos entre ${startDate} y ${endDate}`);
+
+  if (!startDate || !endDate) {
+    console.log('❌ Error: Fechas no proporcionadas');
+    return next(new AppError('Se requieren fechas de inicio y fin', 400));
+  }
+
+  const events = await Event.find({
+    startDate: { $gte: new Date(startDate) },
+    endDate: { $lte: new Date(endDate) }
+  })
+    .populate('trainer', 'name email')
+    .populate('client', 'name email')
+    .populate('relatedService')
+    .populate('relatedPaymentPlan')
+    .populate('relatedRoutinePlan')
+    .sort({ startDate: 1 });
+
+  console.log(`✅ Encontrados ${events.length} eventos en el rango de fechas`);
+  res.status(200).json({
+    status: 'success',
+    results: events.length,
+    data: {
+      events
+    }
+  });
+});

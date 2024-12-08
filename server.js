@@ -46,6 +46,8 @@ try {
     const expenseRoutes = require('./routes/expenseRoutes');
     const incomeRoutes = require('./routes/incomeRoutes');
     const paymentPlanRoutes = require('./routes/paymentPlanRoutes');
+    const paymentInfoRoutes = require('./routes/paymentInfoRoutes');
+    const paymentMethodRoutes = require('./routes/paymentMethodRoutes');
     const planEntrenamientoRoutes = require('./routes/planEntrenamientoRoutes');
     const serviceRoutes = require('./routes/serviceRoutes');
     const trainerRoutes = require('./routes/trainerRoutes');
@@ -68,6 +70,9 @@ try {
     const reporteRoutes = require('./routes/reporteRoutes');
     const exerciseRoutes = require('./routes/exerciseRoutes');
     const routineRoutes = require('./routes/routineRoutes');
+    const planningTemplateRoutes = require('./routes/planningTemplateRoutes');
+    const messageRoutes = require('./routes/messageRoutes');
+    const trainerClientChatRoutes = require('./routes/trainerClientChatRoutes');
 
     // Configurar rutas
     app.use('/api/auth', authRoutes);
@@ -76,6 +81,8 @@ try {
     app.use('/api/gastos', expenseRoutes);
     app.use('/api/ingresos', incomeRoutes);
     app.use('/api/planes-de-pago', paymentPlanRoutes);
+    app.use('/api/payment-info', paymentInfoRoutes);
+    app.use('/api/metodos-de-pago', paymentMethodRoutes);
     app.use('/api/planes-entrenamiento', planEntrenamientoRoutes);
     app.use('/api/servicios', serviceRoutes);
     app.use('/api/entrenadores', trainerRoutes);
@@ -97,6 +104,9 @@ try {
     app.use('/api/economic-alerts', economicAlertRoutes);
     app.use('/api/bonos', bonoRoutes);
     app.use('/api/reportes', reporteRoutes);
+    app.use('/api', messageRoutes); // Montamos las rutas de mensajes en /api
+    app.use('/api', trainerClientChatRoutes); // Montamos las rutas de chat en /api
+    app.use('/api/planningtemplate', planningTemplateRoutes);
 
     console.log(' Todas las rutas configuradas correctamente');
 } catch (error) {

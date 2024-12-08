@@ -2,10 +2,27 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
+// Esquema para las Opciones
+const OpcionSchema = new Schema({
+  texto: { type: String, required: true },
+  valor: { type: String, required: true }
+});
+
 // Esquema para las Preguntas
 const PreguntaSchema = new Schema({
   texto: { type: String, required: true },
   categoria: { type: String, required: true },
+  tipo: { type: String, required: true, enum: ['texto', 'numero', 'opciones', 'boolean'] },
+  opciones: { 
+    type: [OpcionSchema],
+    required: function() { return this.tipo === 'opciones'; },
+    validate: {
+      validator: function(v) {
+        return this.tipo !== 'opciones' || (v && v.length > 0);
+      },
+      message: 'Las preguntas de tipo opciones deben tener al menos una opción'
+    }
+  }
 });
 
 // Modelo Cuestionario

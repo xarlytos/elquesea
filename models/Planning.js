@@ -11,6 +11,13 @@ const CheckInSchema = new Schema({
 
 const CheckIn = mongoose.model('CheckIn', CheckInSchema);
 
+// 4. SetRender Schema
+const SetRenderSchema = new Schema({
+  campo1: { type: String, default: 'reps', enum: ['reps', 'weight', 'rest', 'tempo', 'rpe', 'rpm', 'rir', 'speed', 'cadence', 'distance', 'height', 'calories', 'round'] },
+  campo2: { type: String, default: 'weight', enum: ['reps', 'weight', 'rest', 'tempo', 'rpe', 'rpm', 'rir', 'speed', 'cadence', 'distance', 'height', 'calories', 'round'] },
+  campo3: { type: String, default: 'rest', enum: ['reps', 'weight', 'rest', 'tempo', 'rpe', 'rpm', 'rir', 'speed', 'cadence', 'distance', 'height', 'calories', 'round'] }
+});
+
 // 4. Set Schema
 const SetSchema = new Schema({
   // Campos básicos (no requeridos)
@@ -29,6 +36,9 @@ const SetSchema = new Schema({
   height: { type: Number, min: 0, alias: 'altura' },
   calories: { type: Number, min: 0, alias: 'calorias' },
   round: { type: Number, min: 1, alias: 'ronda' },
+
+  // Campo de renderizado
+  renderConfig: { type: SetRenderSchema, default: () => ({}) },
 
   // Campo de estado
   completed: { type: Boolean, default: false },

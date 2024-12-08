@@ -98,4 +98,40 @@ router.put('/:planningId/weeks/:weekNumber/days/:day/sessions/:sessionId/exercis
   planningController.updatePlanningExercise
 );
 
+// Ruta para actualizar la configuración de renderizado de un set
+router.patch(
+    '/:planningId/weeks/:weekNumber/days/:day/sessions/:sessionId/exercises/:exerciseId/sets/:setId/render-config',
+    [
+        verificarToken,
+        esTrainer,
+        param('planningId', 'ID de planning inválido').isMongoId(),
+        param('weekNumber', 'Número de semana debe ser un número válido').isInt({ min: 1 }),
+        param('day', 'Día de la semana es requerido').isString(),
+        param('sessionId', 'ID de sesión inválido').isMongoId(),
+        param('exerciseId', 'ID de ejercicio inválido').isMongoId(),
+        param('setId', 'ID de set inválido').isMongoId(),
+        body('campo1').optional().isString(),
+        body('campo2').optional().isString(),
+        body('campo3').optional().isString()
+    ],
+    validateRequest,
+    planningController.updateSetRenderConfig
+);
+
+// Ruta para copiar una rutina a un día específico
+router.post(
+  '/:planningId/weeks/:weekNumber/days/:day/copy-routine',
+  [
+    verificarToken,
+    verificarRol(['trainer']),
+    check('planningId', 'ID de planning inválido').isMongoId(),
+    check('weekNumber', 'Número de semana debe ser un número válido').isInt({ min: 1 }),
+    check('day', 'Día de la semana es requerido').isString(),
+    check('routineData', 'Se requiere la información de la rutina').isObject(),
+    check('routineData.exercises', 'Se requiere un array de ejercicios').isArray(),
+  ],
+  validateRequest,
+  planningController.copyRoutineToDay
+);
+
 module.exports = router;

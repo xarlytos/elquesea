@@ -1,0 +1,104 @@
+{
+  "nombre": "Esqueleto de Entrenamiento Básico",
+  "descripcion": "Plan de entrenamiento completo para 12 semanas",
+  "semanas": 12,
+  "plan": [
+    {
+      "weekNumber": 1,
+      "days": [
+        {
+          "dayNumber": 1,
+          "sessions": [
+            {
+              "name": "Sesión Mañana",
+              "exercises": [
+                {
+                  "name": "Press de Banca",
+                  "variants": [
+                    {
+                      "color": "rojo",
+                      "sets": [
+                        {
+                          "reps": 8,
+                          "weight": 80,
+                          "rest": 90
+                        },
+                        {
+                          "reps": 8,
+                          "weight": 80,
+                          "rest": 90
+                        }
+                      ]
+                    },
+                    {
+                      "color": "verde",
+                      "sets": [
+                        {
+                          "reps": 12,
+                          "weight": 60,
+                          "rest": 60
+                        },
+                        {
+                          "reps": 12,
+                          "weight": 60,
+                          "rest": 60
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Sentadillas",
+                  "variants": [
+                    {
+                      "color": "amarillo",
+                      "sets": [
+                        {
+                          "reps": 10,
+                          "weight": 100,
+                          "rest": 120
+                        },
+                        {
+                          "reps": 10,
+                          "weight": 100,
+                          "rest": 120
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Sesión Tarde",
+              "exercises": [
+                {
+                  "name": "Peso Muerto",
+                  "variants": [
+                    {
+                      "color": "rojo",
+                      "sets": [
+                        {
+                          "reps": 5,
+                          "weight": 120,
+                          "rest": 180
+                        },
+                        {
+                          "reps": 5,
+                          "weight": 120,
+                          "rest": 180
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "createdAt": "2024-01-17T12:00:00.000Z",
+  "updatedAt": "2024-01-17T12:00:00.000Z"
+}

@@ -3,7 +3,7 @@ const axios = require("axios");
 const schedule = require("node-schedule");
 
 // Configuración de la clave API de Brevo
-const BREVO_API_KEY = "tu_clave_de_api_aqui"; // Reemplaza con tu clave de API de Brevo
+const BREVO_API_KEY = "Apiprueba"; // Reemplaza con tu clave de API de Brevo
 
 // Configuración del cliente de Brevo
 const brevoApi = axios.create({

@@ -1020,6 +1020,104 @@ exports.actualizarComida = async (req, res) => {
   }
 };
 
+// Asignar una dieta a un cliente
+const assignDietToClient = async (req, res) => {
+  console.log('\n=================================================================');
+  console.log('================== INICIO assignDietToClient =====================');
+  console.log('=================================================================\n');
+
+  try {
+    const { dietaId } = req.params;
+    const { clientId } = req.body;
+    const trainerId = req.user.id;
+
+    console.log('Datos recibidos:', { dietaId, clientId, trainerId });
+
+    // Validar IDs
+    if (!mongoose.Types.ObjectId.isValid(dietaId) || !mongoose.Types.ObjectId.isValid(clientId)) {
+      console.log('Error: IDs inválidos');
+      return res.status(400).json({ message: 'ID de dieta o cliente inválido' });
+    }
+
+    // Buscar la dieta
+    const dieta = await Dieta.findById(dietaId);
+    if (!dieta) {
+      console.log('Error: Dieta no encontrada');
+      return res.status(404).json({ message: 'Dieta no encontrada' });
+    }
+
+    // Verificar que la dieta pertenece al entrenador
+    if (dieta.trainer.toString() !== trainerId) {
+      console.log('Error: La dieta no pertenece al entrenador');
+      return res.status(403).json({ message: 'No tienes permiso para asignar esta dieta' });
+    }
+
+    // Verificar el cliente
+    const client = await Client.findById(clientId);
+    if (!client) {
+      console.log('Error: Cliente no encontrado');
+      return res.status(404).json({ message: 'Cliente no encontrado' });
+    }
+
+    // Verificar que el cliente pertenece al entrenador
+    if (client.trainer.toString() !== trainerId) {
+      console.log('Error: El cliente no pertenece al entrenador');
+      return res.status(403).json({ message: 'No tienes permiso para asignar dietas a este cliente' });
+    }
+
+    // Verificar si el cliente ya tiene asignada esta dieta
+    if (client.dietas && client.dietas.includes(dietaId)) {
+      console.log('Error: Dieta ya asignada al cliente');
+      return res.status(400).json({ message: 'El cliente ya tiene asignada esta dieta' });
+    }
+
+    // Inicializar el array de dietas si no existe
+    if (!client.dietas) {
+      client.dietas = [];
+    }
+
+    // Asignar la dieta al cliente
+    client.dietas.push(dietaId);
+    await client.save();
+
+    // Actualizar la lista de clientes asignados en la dieta
+    if (!dieta.assignedClients) {
+      dieta.assignedClients = [];
+    }
+    
+    dieta.assignedClients.push({
+      client: clientId,
+      assignedDate: new Date(),
+      status: 'active'
+    });
+    
+    await dieta.save();
+
+    console.log('Dieta asignada exitosamente');
+    res.status(200).json({
+      message: 'Dieta asignada exitosamente',
+      dieta: {
+        _id: dieta._id,
+        nombre: dieta.nombre,
+        assignedClients: dieta.assignedClients
+      },
+      client: {
+        _id: client._id,
+        nombre: client.nombre,
+        dietas: client.dietas
+      }
+    });
+
+  } catch (error) {
+    console.error('Error en assignDietToClient:', error);
+    res.status(500).json({
+      message: 'Error al asignar la dieta al cliente',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+};
+
 module.exports = {
   getAllDietas,
   getDietaById,
@@ -1030,5 +1128,6 @@ module.exports = {
   crearNuevaSemana,
   actualizarMacrosDia,
   crearComida,
-  actualizarComida
+  actualizarComida,
+  assignDietToClient // Exportar la nueva función
 };

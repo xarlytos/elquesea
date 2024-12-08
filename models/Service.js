@@ -11,7 +11,7 @@ const Service = mongoose.models.Service || mongoose.model('Service', new Schema(
     required: true,
   },
   entrenador: { type: Schema.Types.ObjectId, ref: 'Trainer', required: true },
-  planDePago: [{ type: Schema.Types.ObjectId, ref: 'PaymentPlan' }], // Cambiado a arreglo
+  planesDePago: [{ type: Schema.Types.ObjectId, ref: 'PaymentPlan' }], // Cambiado a arreglo
   clientes: { type: [{ type: Schema.Types.ObjectId, ref: 'Client' }], default: [] },
   serviciosAdicionales: [{
     type: String,

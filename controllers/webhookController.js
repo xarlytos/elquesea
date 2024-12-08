@@ -4,13 +4,11 @@ const Transaction = require('../models/Transaction');
 const Income = require('../models/Income');
 const PaymentPlan = require('../models/PaymentPlan');
 const Trainer = require('../models/Trainer');
-
-const isTestEnv = process.env.NODE_ENV === 'test';
-const stripe = isTestEnv ? null : require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripeService = require('./services/stripeService');
 
 // Procesa los webhooks de Stripe (o simulado en entorno de prueba)
 exports.handleStripeWebhook = async (req, res) => {
-  if (isTestEnv) {
+  if (process.env.NODE_ENV === 'test') {
     // Simulación de evento en modo de prueba
     const mockEvent = {
       type: 'checkout.session.completed',
@@ -37,7 +35,7 @@ exports.handleStripeWebhook = async (req, res) => {
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.body, signature, process.env.STRIPE_WEBHOOK_SECRET);
+    event = await stripeService.constructEvent(req.body, signature);
   } catch (err) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }

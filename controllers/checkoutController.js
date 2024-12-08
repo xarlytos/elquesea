@@ -1,10 +1,10 @@
 // controllers/checkoutController.js
 
 const PaymentPlan = require('../models/PaymentPlan');
+const stripeService = require('./services/stripeService');
 
 // Condición para desactivar Stripe en modo de prueba
 const isTestEnv = process.env.NODE_ENV === 'test';
-const stripe = isTestEnv ? null : require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // Crear una sesión de checkout en Stripe (o simulado en entorno de prueba)
 exports.createCheckoutSession = async (req, res) => {
@@ -23,7 +23,7 @@ exports.createCheckoutSession = async (req, res) => {
     }
 
     // Llamada real a Stripe en entornos de producción o desarrollo
-    const session = await stripe.checkout.sessions.create({
+    const session = await stripeService.createCheckoutSession({
       payment_method_types: ['card'],
       line_items: [{
         price: paymentPlan.stripePriceId,

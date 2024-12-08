@@ -17,7 +17,6 @@ const stripeService = require('../controllers/services/stripeService');
 const PaymentPlan = require('../models/PaymentPlan');
 const Client = require('../models/Client');
 const Service = require('../models/Service');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // Crear un nuevo plan de pago (solo para entrenadores)
 router.post('/', verificarToken, verificarRol('trainer'), createPaymentPlan);
@@ -95,7 +94,7 @@ router.post('/webhook', express.raw({type: 'application/json'}), async (req, res
     let event;
 
     try {
-        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+        event = await stripeService.webhooks.constructEvent(req.body, sig, endpointSecret);
     } catch (err) {
         console.error('Error en webhook:', err.message);
         return res.status(400).send(`Webhook Error: ${err.message}`);

@@ -615,6 +615,16 @@ async function handleWebhookEvent(event) {
   }
 }
 
+// Construir un evento de webhook
+async function constructEvent(payload, signature) {
+  if (!isStripeEnabled()) {
+    console.log('Stripe no está configurado - no se puede construir evento de webhook');
+    return null;
+  }
+  const stripe = getStripeInstance();
+  return stripe.webhooks.constructEvent(payload, signature, process.env.STRIPE_WEBHOOK_SECRET);
+}
+
 module.exports = {
   isStripeEnabled,
   createProduct,
@@ -636,5 +646,7 @@ module.exports = {
   getRevenueSummary,
   getPaymentDetails,
   createInvoice,
-  handleWebhookEvent
+  handleWebhookEvent,
+  getStripeInstance,
+  constructEvent
 };

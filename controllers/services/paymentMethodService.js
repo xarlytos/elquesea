@@ -1,10 +1,15 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const Client = require('../../models/Client');
+const stripeService = require('./stripeService');
 
 const paymentMethodService = {
     // Crear o actualizar el cliente en Stripe
     async setupCustomer(clientId, paymentMethodId) {
         try {
+            if (!stripeService.isStripeEnabled()) {
+                console.log('Stripe no está configurado - no se puede crear o actualizar cliente');
+                throw new Error('Stripe no está configurado');
+            }
+
             const client = await Client.findById(clientId);
             if (!client) {
                 throw new Error('Cliente no encontrado');
@@ -14,6 +19,7 @@ const paymentMethodService = {
 
             // Si el cliente no existe en Stripe, créalo
             if (!stripeCustomerId) {
+                const stripe = stripeService.getStripeInstance();
                 const customer = await stripe.customers.create({
                     email: client.email,
                     name: `${client.nombre} ${client.apellidos}`,
@@ -30,6 +36,7 @@ const paymentMethodService = {
                 await client.save();
             } else {
                 // Si ya existe, actualiza su método de pago predeterminado
+                const stripe = stripeService.getStripeInstance();
                 await stripe.customers.update(stripeCustomerId, {
                     invoice_settings: {
                         default_payment_method: paymentMethodId,
@@ -52,11 +59,17 @@ const paymentMethodService = {
     // Obtener los métodos de pago del cliente
     async getPaymentMethods(clientId) {
         try {
+            if (!stripeService.isStripeEnabled()) {
+                console.log('Stripe no está configurado - no se pueden obtener métodos de pago');
+                return [];
+            }
+
             const client = await Client.findById(clientId);
             if (!client || !client.stripeCustomerId) {
                 throw new Error('Cliente no encontrado o sin métodos de pago');
             }
 
+            const stripe = stripeService.getStripeInstance();
             const paymentMethods = await stripe.paymentMethods.list({
                 customer: client.stripeCustomerId,
                 type: 'card'
@@ -72,11 +85,17 @@ const paymentMethodService = {
     // Eliminar un método de pago
     async removePaymentMethod(clientId, paymentMethodId) {
         try {
+            if (!stripeService.isStripeEnabled()) {
+                console.log('Stripe no está configurado - no se puede eliminar método de pago');
+                return { success: false, error: 'Stripe no está configurado' };
+            }
+
             const client = await Client.findById(clientId);
             if (!client || !client.stripeCustomerId) {
                 throw new Error('Cliente no encontrado o sin métodos de pago');
             }
 
+            const stripe = stripeService.getStripeInstance();
             await stripe.paymentMethods.detach(paymentMethodId);
 
             // Si era el método predeterminado, limpiarlo

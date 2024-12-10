@@ -91,7 +91,7 @@ const getAllPlannings = async (req, res) => {
       res.status(200).json(planning);
     } catch (error) {
       console.error("getPlanningById - Error:", error);
-      res.status(500).json({ message: 'Error al obtener el planning', error: error.message });
+      res.status(500).json({ message: 'Error al obtener el planning', error });
     }
   };
   
@@ -173,6 +173,7 @@ const getAllPlannings = async (req, res) => {
         cliente: clienteId,
         trainer: trainerId,
         tipo,
+        esqueleto: null, // Inicializamos el campo esqueleto como null
         updatedAt: new Date(),
       });
 
@@ -1401,6 +1402,106 @@ const updatePlanning = async (req, res) => {
     }
   };
 
+  // Asignar un esqueleto a un planning
+  const assignEsqueletoToPlanning = async (req, res) => {
+    try {
+      console.log('\n=== 🔄 INICIANDO ASIGNACIÓN DE ESQUELETO A PLANNING ===');
+      
+      // Logging de todos los datos recibidos
+      console.log('📝 Datos de la petición:');
+      console.log('- Parámetros:', req.params);
+      console.log('- Body:', req.body);
+      console.log('- Usuario:', {
+        id: req.user.id,
+        role: req.user.role
+      });
+
+      const { planningId } = req.params;
+      const { esqueletoId } = req.body;
+
+      console.log('\n🔍 IDs a procesar:');
+      console.log('- Planning ID:', planningId);
+      console.log('- Esqueleto ID:', esqueletoId);
+
+      // Validar que los IDs sean válidos
+      if (!mongoose.Types.ObjectId.isValid(planningId) || !mongoose.Types.ObjectId.isValid(esqueletoId)) {
+        console.log('❌ Error: IDs inválidos');
+        return res.status(400).json({ message: 'IDs inválidos' });
+      }
+      console.log('✅ IDs validados correctamente');
+
+      // Buscar el planning y verificar que pertenece al trainer
+      console.log('\n🔍 Buscando planning...');
+      const planning = await Planning.findOne({
+        _id: planningId,
+        trainer: req.user.id
+      });
+
+      if (!planning) {
+        console.log('❌ Error: Planning no encontrado o no pertenece al trainer');
+        return res.status(404).json({ message: 'Planning no encontrado o no tienes permisos para modificarlo' });
+      }
+      console.log('✅ Planning encontrado:', {
+        id: planning._id,
+        nombre: planning.nombre,
+        trainer: planning.trainer
+      });
+
+      // Buscar el esqueleto
+      console.log('\n🔍 Buscando esqueleto...');
+      const esqueleto = await mongoose.model('Esqueleto').findById(esqueletoId);
+      if (!esqueleto) {
+        console.log('❌ Error: Esqueleto no encontrado');
+        return res.status(404).json({ message: 'Esqueleto no encontrado' });
+      }
+      console.log('✅ Esqueleto encontrado:', {
+        id: esqueleto._id,
+        nombre: esqueleto.nombre,
+        planningsActuales: esqueleto.plannings.length
+      });
+
+      // Asignar el esqueleto al planning
+      console.log('\n📝 Asignando esqueleto al planning...');
+      planning.esqueleto = esqueletoId;
+      await planning.save();
+      console.log('✅ Esqueleto asignado al planning');
+
+      // Agregar el planning al array de plannings del esqueleto
+      console.log('\n📝 Actualizando array de plannings en el esqueleto...');
+      if (!esqueleto.plannings.includes(planningId)) {
+        esqueleto.plannings.push(planningId);
+        await esqueleto.save();
+        console.log('✅ Planning añadido al array de plannings del esqueleto');
+      } else {
+        console.log('ℹ️ El planning ya estaba en el array del esqueleto');
+      }
+
+      // Devolver el planning actualizado con el esqueleto populado
+      console.log('\n🔄 Obteniendo planning actualizado con datos populados...');
+      const updatedPlanning = await Planning.findById(planningId)
+        .populate('esqueleto')
+        .populate('cliente', 'nombre email')
+        .populate('trainer', 'nombre email especialidad');
+
+      console.log('✅ Proceso completado exitosamente');
+      console.log('=== 🎉 FIN DE LA ASIGNACIÓN ===\n');
+
+      res.status(200).json({
+        message: 'Esqueleto asignado correctamente',
+        planning: updatedPlanning
+      });
+
+    } catch (error) {
+      console.error("\n❌ Error en assignEsqueletoToPlanning:");
+      console.error("- Mensaje:", error.message);
+      console.error("- Stack:", error.stack);
+      res.status(500).json({ 
+        message: 'Error al asignar el esqueleto al planning', 
+        error: error.message 
+      });
+    }
+  };
+
   module.exports = {
     getAllPlannings,
     getPlanningById,
@@ -1417,5 +1518,6 @@ const updatePlanning = async (req, res) => {
     updatePlanningExercise,
     addExerciseToSession,
     updateSetRenderConfig,
-    copyRoutineToDay
+    copyRoutineToDay,
+    assignEsqueletoToPlanning
   };

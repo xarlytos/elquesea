@@ -30,6 +30,19 @@ router.delete('/:id', verificarToken, esTrainer, planningController.deletePlanni
 router.post('/sets/:setId/checkins', verificarToken, esTrainer, planningController.addCheckInToSet); 
 router.get('/sets/:setId/checkins', verificarToken, esTrainer, planningController.getCheckInsForSet); 
 
+// Ruta para asignar un esqueleto a un planning
+router.post(
+  '/:planningId/assign-esqueleto',
+  [
+    verificarToken,
+    verificarRol(['trainer']),
+    check('planningId', 'ID de planning inválido').isMongoId(),
+    check('esqueletoId', 'ID de esqueleto inválido').isMongoId(),
+  ],
+  validateRequest,
+  planningController.assignEsqueletoToPlanning
+);
+
 // Rutas de sesión
 router.post(
   '/session',

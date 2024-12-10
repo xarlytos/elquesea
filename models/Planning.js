@@ -104,6 +104,17 @@ const WeekPlanSchema = new Schema({
 
 const WeekPlan = mongoose.model('WeekPlan', WeekPlanSchema);
 
+// NotasPlanning Schema
+const NotasPlanningSchema = new Schema({
+  titulo: { type: String, required: true },
+  contenido: { type: String, required: true },
+  fecha: { type: Date, default: Date.now },
+  importante: { type: Boolean, default: false },
+  planning: { type: Schema.Types.ObjectId, ref: 'Planning' }
+}, { timestamps: true });
+
+const NotasPlanning = mongoose.model('NotasPlanning', NotasPlanningSchema);
+
 // 9. Planning Schema
 const PlanningSchema = new Schema(
   {
@@ -121,6 +132,8 @@ const PlanningSchema = new Schema(
       enum: ['Planificacion', 'Plantilla'],
       default: 'Planificacion'
     },
+    esqueleto: { type: Schema.Types.ObjectId, ref: 'Esqueleto' }, // Referencia opcional al esqueleto
+    notas: [{ type: Schema.Types.ObjectId, ref: 'NotasPlanning' }],
     updatedAt: { type: Date, default: Date.now },
   },
   { timestamps: true }
@@ -142,5 +155,6 @@ module.exports = {
   Session,
   DayPlan,
   WeekPlan,
+  NotasPlanning,
   Planning,
 };

@@ -130,6 +130,7 @@ const EsqueletoSchema = new mongoose.Schema({
   descripcion: String,
   semanas: { type: Number, required: true },
   plan: [WeekPlanSchema],
+  plannings: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Planning' }],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 }, { timestamps: true });

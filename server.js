@@ -73,7 +73,7 @@ try {
     const planningTemplateRoutes = require('./routes/planningTemplateRoutes');
     const messageRoutes = require('./routes/messageRoutes');
     const trainerClientChatRoutes = require('./routes/trainerClientChatRoutes');
-
+    const notasPlanningRoutes = require('./routes/notasPlanningRoutes');
     // Configurar rutas
     app.use('/api/auth', authRoutes);
     app.use('/api/clientes', clientRoutes);
@@ -107,7 +107,7 @@ try {
     app.use('/api', messageRoutes); // Montamos las rutas de mensajes en /api
     app.use('/api', trainerClientChatRoutes); // Montamos las rutas de chat en /api
     app.use('/api/planningtemplate', planningTemplateRoutes);
-
+    app.use('/api/notas-planning', notasPlanningRoutes);
     console.log(' Todas las rutas configuradas correctamente');
 } catch (error) {
     console.error(' Error al cargar las rutas:', error);

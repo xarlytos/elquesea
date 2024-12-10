@@ -1,7 +1,11 @@
 // controllers/serviceController.js
-const { Service, PaymentPlan } = require('../models/Service');
-const Client = require('../models/Client'); // Asegúrate de tener este modelo definido
+const { Service } = require('../models/Service');
+const Client = require('../models/Client');
+const Planning = require('../models/Planning');
+const Dieta = require('../models/Dieta');
+const Income = require('../models/Income');
 const jwt = require('jsonwebtoken');
+const PaymentPlan = require('../models/PaymentPlan');
 
 /**
  * Crear un nuevo servicio
@@ -378,15 +382,15 @@ const associateClientToPaymentPlan = async (req, res) => {
       packCitas: null
     };
 
-    // Crear planificación si está incluida
-    if (serviciosAdicionales.includes('Planificacion')) {
+    // Crear planificación si está incluida y el cliente no tiene una activa
+    if (serviciosAdicionales.includes('Planificacion') && !client.planningActivo) {
       console.log('📋 Creando planificación...');
       const planning = new Planning({
         nombre: `Plan de entrenamiento - ${client.nombre}`,
         descripcion: `Plan de entrenamiento para ${client.nombre}`,
         fechaInicio: new Date(),
         meta: 'Objetivo por definir',
-        semanas: 4, // Valor por defecto
+        semanas: 4,
         cliente: client._id,
         trainer: paymentPlan.servicio.entrenador
       });
@@ -395,12 +399,15 @@ const associateClientToPaymentPlan = async (req, res) => {
 
       // Agregar la planificación al servicio
       paymentPlan.servicio.planificaciones.push(planning._id);
+    } else if (serviciosAdicionales.includes('Planificacion')) {
+      console.log('📋 El cliente ya tiene un planning activo, omitiendo creación...');
+      serviciosCreados.planning = client.planningActivo;
     }
 
-    // Crear dieta si está incluida
-    if (serviciosAdicionales.includes('Dietas')) {
+    // Crear dieta si está incluida y el cliente no tiene una activa
+    if (serviciosAdicionales.includes('Dietas') && !client.dietaActiva) {
       console.log('🥗 Creando dieta...');
-      const dieta = new Dieta({
+      const dieta = await Dieta.create({
         nombre: `Plan nutricional - ${client.nombre}`,
         cliente: client._id,
         trainer: paymentPlan.servicio.entrenador,
@@ -410,24 +417,25 @@ const associateClientToPaymentPlan = async (req, res) => {
         estado: 'activa',
         fechaComienzo: new Date()
       });
-      await dieta.save();
       serviciosCreados.dieta = dieta;
 
       // Agregar la dieta al servicio
       paymentPlan.servicio.dietas.push(dieta._id);
+    } else if (serviciosAdicionales.includes('Dietas')) {
+      console.log('🥗 El cliente ya tiene una dieta activa, omitiendo creación...');
+      serviciosCreados.dieta = client.dietaActiva;
     }
 
     // Crear servicio de pack de citas si está incluido
     if (serviciosAdicionales.includes('Pack de Citas')) {
       console.log('📅 Creando pack de citas...');
-      const packCitas = new Service({
+      const packCitas = await Service.create({
         nombre: `Pack de Citas - ${client.nombre}`,
         descripcion: 'Pack de citas incluido en el servicio',
         tipo: 'Pack de Citas',
         entrenador: paymentPlan.servicio.entrenador,
         clientes: [client._id]
       });
-      await packCitas.save();
       serviciosCreados.packCitas = packCitas;
 
       // Agregar el pack de citas a los servicios del cliente
@@ -446,8 +454,12 @@ const associateClientToPaymentPlan = async (req, res) => {
     for (const fecha of fechasIngresos) {
       const ingreso = new Income({
         entrenador: paymentPlan.servicio.entrenador,
+        cliente: client._id,
+        planDePago: paymentPlan._id,
         monto: paymentPlan.precio,
         moneda: paymentPlan.moneda,
+        metodoPago: metodoPago,
+        estado: 'pendiente',
         fecha: fecha,
         descripcion: `Pago ${paymentPlan.frecuencia} - ${paymentPlan.servicio.nombre} - ${client.nombre}`
       });

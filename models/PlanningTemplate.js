@@ -80,33 +80,95 @@ const AssignedClientSchema = new Schema({
 
 // Schema principal de la plantilla
 const PlanningTemplateSchema = new Schema({
-  nombre: { type: String, required: true },
-  descripcion: { type: String },
-  trainer: { type: Schema.Types.ObjectId, ref: 'Trainer', required: true },
-  totalWeeks: { type: Number, required: true, min: 1 },
-  plan: [TemplateWeekSchema],
-  assignedClients: [AssignedClientSchema],
-  isActive: { type: Boolean, default: true },
-  tags: [String], // Para categorizar las plantillas
-  difficulty: {
+  nombre: {
     type: String,
-    enum: ['principiante', 'intermedio', 'avanzado'],
-    required: true
+    required: [true, 'El nombre es requerido']
   },
-  category: {
+  descripcion: {
     type: String,
-    enum: ['fuerza', 'hipertrofia', 'resistencia', 'pérdida de peso', 'otro'],
-    required: true
-  }
-}, { 
-  timestamps: true,
-  // Índices para mejorar el rendimiento de las búsquedas
-  indexes: [
-    { trainer: 1 },
-    { 'assignedClients.client': 1 },
-    { tags: 1 },
-    { category: 1 }
-  ]
+    required: [true, 'La descripción es requerida']
+  },
+  trainer: {
+    type: Schema.Types.ObjectId,
+    ref: 'Trainer',
+    required: [true, 'El trainer es requerido']
+  },
+  meta: {
+    type: String,
+    required: [true, 'La meta es requerida'],
+    enum: ['Cardio', 'Fuerza', 'Hipertrofia', 'Resistencia', 'Movilidad', 'Coordinación', 'Definición', 'Recomposición', 'Rehabilitación', 'Otra']
+  },
+  otraMeta: {
+    type: String,
+    required: function() {
+      return this.meta === 'Otra';
+    }
+  },
+  semanas: {
+    type: Number,
+    required: [true, 'El número de semanas es requerido'],
+    min: [1, 'Debe haber al menos 1 semana']
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  plan: [{
+    weekNumber: Number,
+    days: [{
+      dayNumber: Number,
+      sessions: [{
+        nombre: String,
+        descripcion: String,
+        exercises: [{
+          exercise: {
+            type: Schema.Types.ObjectId,
+            ref: 'Exercise'
+          },
+          orden: Number,
+          sets: [{
+            tipo: {
+              type: String,
+              enum: ['normal', 'dropset', 'superset'],
+              default: 'normal'
+            },
+            repeticiones: Number,
+            peso: Number,
+            tiempo: Number,
+            descanso: Number,
+            notas: String
+          }],
+          notas: String
+        }]
+      }]
+    }]
+  }],
+  assignedClients: [{
+    client: {
+      type: Schema.Types.ObjectId,
+      ref: 'Client'
+    },
+    assignedAt: {
+      type: Date,
+      default: Date.now
+    },
+    customExercises: [{
+      originalExercise: {
+        type: Schema.Types.ObjectId,
+        ref: 'Exercise'
+      },
+      replacementExercise: {
+        type: Schema.Types.ObjectId,
+        ref: 'Exercise'
+      },
+      weekNumber: Number,
+      dayNumber: Number,
+      sessionIndex: Number,
+      exerciseIndex: Number
+    }]
+  }]
+}, {
+  timestamps: true
 });
 
 // Middleware para validar que no haya números de semana o día duplicados
@@ -151,8 +213,8 @@ PlanningTemplateSchema.methods.assignClient = function(clientId) {
   
   this.assignedClients.push({
     client: clientId,
-    currentWeek: 1,
-    currentDay: 1
+    assignedAt: Date.now,
+    customExercises: []
   });
   
   return this.save();

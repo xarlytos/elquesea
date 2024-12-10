@@ -139,18 +139,27 @@ const getTemplateBasicData = async (req, res) => {
 // Crear una nueva plantilla
 const createTemplate = async (req, res) => {
   try {
-    const { nombre, descripcion, difficulty, category } = req.body;
+    const { nombre, descripcion, meta, otraMeta, semanas } = req.body;
     const trainer = req.user.id; // Obtenemos el trainer del token
 
     // Validar campos requeridos
-    if (!nombre || !difficulty || !category) {
+    if (!nombre || !descripcion || !meta || !semanas) {
       console.log(' [createTemplate] Faltan campos requeridos');
-      return res.status(400).json({ message: 'Nombre, dificultad y categoría son requeridos' });
+      return res.status(400).json({ 
+        message: 'Nombre, descripción, meta y número de semanas son requeridos' 
+      });
     }
 
-    // Crear estructura base de 4 semanas con 7 días cada una
+    // Validar meta personalizada
+    if (meta === 'Otra' && !otraMeta) {
+      return res.status(400).json({ 
+        message: 'Debe especificar una meta personalizada cuando selecciona "Otra"' 
+      });
+    }
+
+    // Crear estructura base con el número de semanas especificado
     const plan = [];
-    for (let weekNumber = 1; weekNumber <= 4; weekNumber++) {
+    for (let weekNumber = 1; weekNumber <= semanas; weekNumber++) {
       const days = [];
       for (let dayNumber = 1; dayNumber <= 7; dayNumber++) {
         days.push({
@@ -168,10 +177,10 @@ const createTemplate = async (req, res) => {
       nombre,
       descripcion,
       trainer,
-      difficulty,
-      category,
-      plan,
-      totalWeeks: 4 // Fijamos en 4 semanas
+      meta,
+      otraMeta: meta === 'Otra' ? otraMeta : undefined,
+      semanas,
+      plan
     });
 
     await template.save();
@@ -184,9 +193,9 @@ const createTemplate = async (req, res) => {
         nombre: template.nombre,
         descripcion: template.descripcion,
         trainer: template.trainer,
-        difficulty: template.difficulty,
-        category: template.category,
-        totalWeeks: template.totalWeeks,
+        meta: template.meta,
+        otraMeta: template.otraMeta,
+        semanas: template.semanas,
         plan: template.plan
       }
     });

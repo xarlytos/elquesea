@@ -111,4 +111,19 @@ router.get(
   eventController.getEventsByDateRange
 );
 
+// Crear un evento de cliente
+router.post(
+  '/client-event',
+  [
+    verificarToken,
+    verificarRol(['trainer', 'admin']),
+    check('title', 'El título es obligatorio').not().isEmpty(),
+    check('startDate', 'La fecha de inicio es obligatoria').isISO8601(),
+    check('endDate', 'La fecha de fin es obligatoria').isISO8601(),
+    check('type', 'El tipo de evento debe ser válido')
+      .isIn(['CITA_CON_CLIENTE', 'RUTINA_CLIENTE', 'GENERAL'])
+  ],
+  eventController.createClientEvent
+);
+
 module.exports = router;

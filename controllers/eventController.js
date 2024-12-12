@@ -75,6 +75,63 @@ exports.createEvent = catchAsync(async (req, res, next) => {
   });
 });
 
+// Crear un evento de cliente
+exports.createClientEvent = catchAsync(async (req, res, next) => {
+  console.log('⭐ Iniciando creación de evento de cliente');
+  console.log('📝 Datos recibidos:', JSON.stringify(req.body, null, 2));
+
+  const {
+    title,
+    description,
+    startDate,
+    endDate,
+    time,
+    clientId,
+    type,
+    alerts
+  } = req.body;
+
+  // Validar que la fecha de inicio no sea posterior a la fecha de fin
+  if (new Date(startDate) > new Date(endDate)) {
+    console.log('❌ Error: Fecha de inicio posterior a fecha de fin');
+    return next(new AppError('La fecha de inicio no puede ser posterior a la fecha de fin', 400));
+  }
+
+  // Validar que el cliente existe
+  const clientExists = await Client.findById(clientId);
+  if (!clientExists) {
+    console.log('❌ Error: Cliente no encontrado');
+    return next(new AppError('Cliente no encontrado', 404));
+  }
+
+  // Forzar valores específicos para eventos de cliente
+  const newEvent = await Event.create({
+    title,
+    description,
+    startDate,
+    endDate,
+    time,
+    type,
+    origin: 'CLIENTE', // Forzar origen como CLIENTE
+    isWorkRelated: true, // Por defecto es relacionado con trabajo
+    client: clientId,
+    alerts
+  });
+
+  console.log(`✅ Evento de cliente creado con éxito. ID: ${newEvent._id}`);
+
+  const populatedEvent = await Event.findById(newEvent._id)
+    .populate('client', 'name email');
+
+  console.log('📤 Enviando respuesta con evento populado');
+  res.status(201).json({
+    status: 'success',
+    data: {
+      event: populatedEvent
+    }
+  });
+});
+
 // Obtener todos los eventos
 exports.getAllEvents = catchAsync(async (req, res) => {
   console.log('⭐ Obteniendo lista de eventos');

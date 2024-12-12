@@ -37,15 +37,29 @@ exports.obtenerIngresoPorId = async (req, res) => {
 // Crear un nuevo ingreso (posible tras una transacción exitosa)
 exports.crearIngreso = async (req, res) => {
   try {
+    console.log('Datos recibidos en crearIngreso:', req.body);
+    console.log('ID del entrenador:', req.user.id);
+
+    // Mapear los campos correctamente
+    const monto = req.body.importe;
+    const cliente = req.body.clienteId;
+    const planDePago = req.body.planId;
     const { 
-      monto, 
       moneda, 
       descripcion, 
-      cliente, 
-      planDePago, 
       metodoPago,
-      estado = 'pendiente' // valor por defecto
+      estado = 'pendiente'
     } = req.body;
+
+    console.log('Datos mapeados:', {
+      monto,
+      moneda,
+      descripcion,
+      cliente,
+      planDePago,
+      metodoPago,
+      estado
+    });
 
     // Validar método de pago
     if (!['stripe', 'efectivo'].includes(metodoPago)) {
@@ -62,7 +76,7 @@ exports.crearIngreso = async (req, res) => {
       metodoPago,
       estado,
       entrenador: req.user.id,
-      fecha: new Date(),
+      fecha: req.body.fecha || new Date(),
     });
 
     // Populate los campos de referencia antes de enviar la respuesta

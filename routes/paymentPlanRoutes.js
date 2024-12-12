@@ -10,7 +10,8 @@ const {
   deletePaymentPlan,
   associateClientToPaymentPlan,
   getClientsByPaymentPlan,
-  disassociateClientFromPaymentPlan
+  disassociateClientFromPaymentPlan,
+  generateInvoice
 } = require('../controllers/paymentPlanController');
 const { verificarToken, verificarRol } = require('../middlewares/authMiddleware');
 const stripeService = require('../controllers/services/stripeService');
@@ -19,28 +20,21 @@ const Client = require('../models/Client');
 const Service = require('../models/Service');
 
 // Crear un nuevo plan de pago (solo para entrenadores)
-router.post('/', verificarToken, verificarRol('trainer'), createPaymentPlan);
-
-// Obtener todos los planes de pago
-router.get('/', verificarToken, getAllPaymentPlans);
+router.route('/')
+  .post(verificarToken, verificarRol('trainer'), createPaymentPlan)
+  .get(verificarToken, getAllPaymentPlans);
 
 // Obtener un plan de pago específico por ID
-router.get('/:paymentPlanId', verificarToken, getPaymentPlanById);
-
-// Actualizar un plan de pago
-router.put('/:paymentPlanId', verificarToken, verificarRol('trainer'), updatePaymentPlan);
-
-// Eliminar un plan de pago
-router.delete('/:paymentPlanId', verificarToken, verificarRol('trainer'), deletePaymentPlan);
+router.route('/:paymentPlanId')
+  .get(verificarToken, getPaymentPlanById)
+  .put(verificarToken, verificarRol('trainer'), updatePaymentPlan)
+  .delete(verificarToken, verificarRol('trainer'), deletePaymentPlan);
 
 // Asociar un cliente a un plan de pago
-router.post('/:paymentPlanId/clients', verificarToken, verificarRol('trainer'), associateClientToPaymentPlan);
-
-// Obtener clientes de un plan de pago
-router.get('/:paymentPlanId/clients', verificarToken, getClientsByPaymentPlan);
-
-// Desasociar un cliente de un plan de pago
-router.delete('/:paymentPlanId/clients', verificarToken, verificarRol('trainer'), disassociateClientFromPaymentPlan);
+router.route('/:paymentPlanId/clients')
+  .post(verificarToken, verificarRol('trainer'), associateClientToPaymentPlan)
+  .get(verificarToken, getClientsByPaymentPlan)
+  .delete(verificarToken, verificarRol('trainer'), disassociateClientFromPaymentPlan);
 
 // Generar enlace de pago para un plan
 router.post('/:planId/payment-link', verificarToken, verificarRol('trainer'), async (req, res) => {
@@ -85,6 +79,9 @@ router.post('/:planId/payment-link', verificarToken, verificarRol('trainer'), as
         });
     }
 });
+
+// Generar factura para un plan de pago
+router.post('/:paymentPlanId/invoice', verificarToken, verificarRol('trainer'), generateInvoice);
 
 // Webhook para manejar eventos de Stripe
 router.post('/webhook', express.raw({type: 'application/json'}), async (req, res) => {

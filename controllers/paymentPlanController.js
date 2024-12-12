@@ -3,6 +3,9 @@ const PaymentPlan = require('../models/PaymentPlan');
 const { Service } = require('../models/Service');
 const Client = require('../models/Client');
 const stripeService = require('./services/stripeService');
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Crea un nuevo producto en Stripe
@@ -330,10 +333,7 @@ const associateClientToPaymentPlan = async (req, res) => {
         // Aquí podrías guardar el ID de la suscripción si lo necesitas
       } catch (error) {
         console.error('Error al crear suscripción en Stripe:', error);
-        return res.status(500).json({
-          mensaje: 'Error al crear la suscripción en Stripe',
-          error: error.message
-        });
+        // Continuamos aunque falle Stripe
       }
     }
 
@@ -417,6 +417,230 @@ const disassociateClientFromPaymentPlan = async (req, res) => {
   }
 };
 
+/**
+ * Generar factura para un plan de pago
+ */
+const generateInvoice = async (req, res) => {
+  try {
+    const { paymentPlanId } = req.params;
+    const { clientId, customInvoiceNumber, paymentMethod = 'efectivo' } = req.body;
+
+    // Verificar que el plan existe
+    const paymentPlan = await PaymentPlan.findById(paymentPlanId);
+    if (!paymentPlan) {
+      return res.status(404).json({
+        mensaje: 'Plan de pago no encontrado'
+      });
+    }
+
+    // Verificar que el cliente existe
+    const client = await Client.findById(clientId);
+    if (!client) {
+      return res.status(404).json({
+        mensaje: 'Cliente no encontrado'
+      });
+    }
+
+    // Verificar que el cliente está asociado al plan
+    if (!paymentPlan.clientes.includes(clientId)) {
+      return res.status(400).json({
+        mensaje: 'El cliente no está asociado a este plan de pago'
+      });
+    }
+
+    // Crear datos de la factura
+    const invoiceData = {
+      invoiceNumber: customInvoiceNumber || `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      date: new Date(),
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      client: {
+        name: client.nombre,
+        email: client.email,
+        address: client.direccion || 'No especificada'
+      },
+      paymentPlan: {
+        name: paymentPlan.nombre,
+        price: paymentPlan.precio,
+        currency: paymentPlan.moneda,
+        frequency: paymentPlan.frecuencia
+      },
+      paymentMethod,
+      paymentStatus: paymentMethod === 'efectivo' ? 'pagado' : 'pendiente',
+      subtotal: paymentPlan.precio,
+      tax: paymentPlan.precio * 0.21,
+      total: paymentPlan.precio * 1.21
+    };
+
+    // Si el pago es en efectivo, registrar como pagado
+    if (paymentMethod === 'efectivo') {
+      invoiceData.paymentDetails = {
+        method: 'efectivo',
+        paidAt: new Date(),
+        status: 'completado'
+      };
+    } 
+    // Si no es efectivo y tenemos Stripe configurado, usar Stripe para la factura
+    else if (client.stripeCustomerId) {
+      try {
+        // Crear un item de factura en Stripe
+        const invoiceItem = await stripeService.stripe.invoiceItems.create({
+          customer: client.stripeCustomerId,
+          amount: Math.round(paymentPlan.precio * 100), // Stripe usa centavos
+          currency: paymentPlan.moneda.toLowerCase(),
+          description: `${paymentPlan.nombre || 'Plan de Pago'} - ${paymentPlan.frecuencia}`,
+        });
+
+        // Crear la factura en Stripe
+        const stripeInvoice = await stripeService.stripe.invoices.create({
+          customer: client.stripeCustomerId,
+          collection_method: 'send_invoice',
+          days_until_due: 30,
+          auto_advance: true, // Finaliza la factura automáticamente
+          metadata: {
+            invoiceNumber: invoiceData.invoiceNumber,
+            paymentPlanId: paymentPlan._id.toString()
+          }
+        });
+
+        // Finalizar y enviar la factura
+        const finalizedInvoice = await stripeService.stripe.invoices.finalizeInvoice(stripeInvoice.id);
+        await stripeService.stripe.invoices.sendInvoice(stripeInvoice.id);
+
+        // Agregar la información de Stripe a nuestra factura
+        invoiceData.stripe = {
+          invoiceId: finalizedInvoice.id,
+          invoiceUrl: finalizedInvoice.hosted_invoice_url, // URL para ver la factura
+          pdfUrl: finalizedInvoice.invoice_pdf // URL del PDF de la factura
+        };
+      } catch (error) {
+        console.error('Error al crear factura en Stripe:', error);
+        return res.status(500).json({
+          mensaje: 'Error al generar la factura en Stripe',
+          error: error.message
+        });
+      }
+    }
+
+    res.status(200).json({
+      mensaje: 'Factura generada con éxito',
+      factura: invoiceData
+    });
+
+  } catch (error) {
+    console.error('Error al generar factura:', error);
+    res.status(500).json({
+      mensaje: 'Error al generar la factura',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Genera un PDF de la factura
+ */
+const generateInvoicePDF = (invoiceData) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 50 });
+      
+      // Configuración del documento
+      doc.font('Helvetica-Bold');
+      
+      // Encabezado
+      doc.fontSize(20).text('FACTURA', { align: 'center' });
+      doc.moveDown();
+      
+      // Información de la factura
+      doc.fontSize(12);
+      doc.text(`Número de Factura: ${invoiceData.invoiceNumber}`);
+      doc.text(`Fecha: ${new Date(invoiceData.date).toLocaleDateString()}`);
+      doc.text(`Fecha de Vencimiento: ${new Date(invoiceData.dueDate).toLocaleDateString()}`);
+      doc.moveDown();
+      
+      // Información del cliente
+      doc.font('Helvetica-Bold').text('CLIENTE');
+      doc.font('Helvetica');
+      doc.text(`Nombre: ${invoiceData.client.name}`);
+      doc.text(`Email: ${invoiceData.client.email}`);
+      if (typeof invoiceData.client.address === 'object') {
+        const address = invoiceData.client.address;
+        doc.text(`Dirección: ${[
+          address.calle,
+          address.numero,
+          address.piso,
+          address.codigoPostal,
+          address.ciudad,
+          address.provincia
+        ].filter(Boolean).join(', ')}`);
+      } else {
+        doc.text(`Dirección: ${invoiceData.client.address}`);
+      }
+      doc.moveDown();
+      
+      // Detalles del plan de pago
+      doc.font('Helvetica-Bold').text('DETALLES DEL SERVICIO');
+      doc.font('Helvetica');
+      doc.text(`Plan: ${invoiceData.paymentPlan.name || 'Plan de Pago'}`);
+      doc.text(`Frecuencia: ${invoiceData.paymentPlan.frequency}`);
+      doc.moveDown();
+      
+      // Tabla de importes
+      doc.font('Helvetica-Bold').text('RESUMEN');
+      doc.font('Helvetica');
+      doc.text(`Subtotal: ${invoiceData.subtotal.toFixed(2)} ${invoiceData.paymentPlan.currency}`);
+      doc.text(`IVA (21%): ${invoiceData.tax.toFixed(2)} ${invoiceData.paymentPlan.currency}`);
+      doc.font('Helvetica-Bold');
+      doc.text(`Total: ${invoiceData.total.toFixed(2)} ${invoiceData.paymentPlan.currency}`);
+      doc.moveDown();
+      
+      // Método de pago
+      doc.font('Helvetica-Bold').text('PAGO');
+      doc.font('Helvetica');
+      doc.text(`Método de pago: ${invoiceData.paymentMethod}`);
+      doc.text(`Estado: ${invoiceData.paymentStatus}`);
+      
+      if (invoiceData.paymentDetails) {
+        doc.text(`Fecha de pago: ${new Date(invoiceData.paymentDetails.paidAt).toLocaleDateString()}`);
+      }
+      
+      // Pie de página
+      doc.fontSize(10);
+      doc.moveDown();
+      doc.text('Gracias por su confianza', { align: 'center' });
+      
+      // Generar nombre único para el archivo
+      const fileName = `factura-${invoiceData.invoiceNumber.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`;
+      const filePath = path.join(__dirname, '..', 'uploads', 'invoices', fileName);
+      
+      // Asegurar que el directorio existe
+      const dir = path.dirname(filePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      
+      // Guardar el PDF
+      const writeStream = fs.createWriteStream(filePath);
+      doc.pipe(writeStream);
+      
+      writeStream.on('finish', () => {
+        resolve({
+          fileName,
+          filePath
+        });
+      });
+      
+      writeStream.on('error', (error) => {
+        reject(error);
+      });
+      
+      doc.end();
+      
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
 module.exports = {
   createPaymentPlan,
   getAllPaymentPlans,
@@ -425,5 +649,6 @@ module.exports = {
   deletePaymentPlan,
   associateClientToPaymentPlan,
   getClientsByPaymentPlan,
-  disassociateClientFromPaymentPlan
+  disassociateClientFromPaymentPlan,
+  generateInvoice
 };

@@ -42,7 +42,7 @@ const notaSchema = new mongoose.Schema({
   },
   categoria: {
     type: String,
-    enum: ['general', 'training', 'nutricion', 'otro', 'General'],
+    enum: ['general', 'training', 'diet', 'medical', 'General'],
     default: 'General'
   }
 });

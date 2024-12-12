@@ -5,7 +5,7 @@ const { Schema } = mongoose;
 const IncomeSchema = new Schema({
   entrenador: { type: Schema.Types.ObjectId, ref: 'Trainer', required: true },
   cliente: { type: Schema.Types.ObjectId, ref: 'Client', required: true },
-  planDePago: { type: Schema.Types.ObjectId, ref: 'PaymentPlan', required: true },
+  planDePago: { type: Schema.Types.ObjectId, ref: 'PaymentPlan' },
   monto: { type: Number, required: true },
   moneda: { type: String, required: true },
   estado: { 
@@ -27,9 +27,6 @@ const IncomeSchema = new Schema({
 IncomeSchema.pre('save', function(next) {
   if (!this.cliente) {
     next(new Error('El campo cliente es requerido'));
-  }
-  if (!this.planDePago) {
-    next(new Error('El campo planDePago es requerido'));
   }
   if (!this.metodoPago) {
     next(new Error('El campo metodoPago es requerido'));

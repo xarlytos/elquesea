@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path'); // Agregado para utilizar path.join
 require('dotenv').config();
 
 // Configuración específica de CORS
@@ -23,6 +24,9 @@ app.options('*', cors(corsOptions));
 // Middleware para leer JSON en las solicitudes
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Servir archivos estáticos desde la carpeta uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Opciones de conexión para Mongoose
 const options = {
@@ -80,7 +84,7 @@ try {
     app.use('/api/licenses', licenseRoutes);
     app.use('/api/gastos', expenseRoutes);
     app.use('/api/ingresos', incomeRoutes);
-    app.use('/api/planes-de-pago', paymentPlanRoutes);
+    app.use('/api/payment-plans', paymentPlanRoutes);
     app.use('/api/payment-info', paymentInfoRoutes);
     app.use('/api/metodos-de-pago', paymentMethodRoutes);
     app.use('/api/planes-entrenamiento', planEntrenamientoRoutes);
@@ -104,8 +108,8 @@ try {
     app.use('/api/economic-alerts', economicAlertRoutes);
     app.use('/api/bonos', bonoRoutes);
     app.use('/api/reportes', reporteRoutes);
-    app.use('/api', messageRoutes); // Montamos las rutas de mensajes en /api
-    app.use('/api', trainerClientChatRoutes); // Montamos las rutas de chat en /api
+    app.use('/api/chats', messageRoutes); 
+    app.use('/api/trainer-client-chats', trainerClientChatRoutes); 
     app.use('/api/planningtemplate', planningTemplateRoutes);
     app.use('/api/notas-planning', notasPlanningRoutes);
     console.log(' Todas las rutas configuradas correctamente');

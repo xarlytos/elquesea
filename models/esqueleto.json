@@ -1,96 +1,144 @@
 {
-  "nombre": "Esqueleto de Entrenamiento Básico",
-  "descripcion": "Plan de entrenamiento completo para 12 semanas",
-  "semanas": 12,
-  "plan": [
+  "nombre": "Plan de Entrenamiento Avanzado",
+  "descripcion": "Plan de entrenamiento personalizado enfocado en hipertrofia",
+  "periodos": [
     {
-      "weekNumber": 1,
-      "days": [
+      "nombre": "Adaptación",
+      "semanaInicio": 1,
+      "diaInicio": 1,
+      "semanaFin": 2,
+      "diaFin": 7,
+      "variants": [
         {
-          "dayNumber": 1,
-          "sessions": [
+          "color": "#FF4444",
+          "exercises": [
             {
-              "name": "Sesión Mañana",
-              "exercises": [
+              "exercise": "65123abc4567def890ghijk",
+              "sets": [
                 {
-                  "name": "Press de Banca",
-                  "variants": [
-                    {
-                      "color": "rojo",
-                      "sets": [
-                        {
-                          "reps": 8,
-                          "weight": 80,
-                          "rest": 90
-                        },
-                        {
-                          "reps": 8,
-                          "weight": 80,
-                          "rest": 90
-                        }
-                      ]
-                    },
-                    {
-                      "color": "verde",
-                      "sets": [
-                        {
-                          "reps": 12,
-                          "weight": 60,
-                          "rest": 60
-                        },
-                        {
-                          "reps": 12,
-                          "weight": 60,
-                          "rest": 60
-                        }
-                      ]
-                    }
-                  ]
+                  "reps": 12,
+                  "weight": 60,
+                  "rest": 90,
+                  "tempo": "2-0-2-0",
+                  "rpe": 7
                 },
                 {
-                  "name": "Sentadillas",
-                  "variants": [
-                    {
-                      "color": "amarillo",
-                      "sets": [
-                        {
-                          "reps": 10,
-                          "weight": 100,
-                          "rest": 120
-                        },
-                        {
-                          "reps": 10,
-                          "weight": 100,
-                          "rest": 120
-                        }
-                      ]
-                    }
-                  ]
+                  "reps": 12,
+                  "weight": 60,
+                  "rest": 90,
+                  "tempo": "2-0-2-0",
+                  "rpe": 7
+                },
+                {
+                  "reps": 12,
+                  "weight": 60,
+                  "rest": 90,
+                  "tempo": "2-0-2-0",
+                  "rpe": 8
                 }
               ]
-            },
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "Volumen",
+      "semanaInicio": 3,
+      "diaInicio": 1,
+      "semanaFin": 6,
+      "diaFin": 7,
+      "variants": [
+        {
+          "color": "#44FF44",
+          "exercises": [
             {
-              "name": "Sesión Tarde",
-              "exercises": [
+              "exercise": "65123abc4567def890ghijk",
+              "sets": [
                 {
-                  "name": "Peso Muerto",
-                  "variants": [
-                    {
-                      "color": "rojo",
-                      "sets": [
-                        {
-                          "reps": 5,
-                          "weight": 120,
-                          "rest": 180
-                        },
-                        {
-                          "reps": 5,
-                          "weight": 120,
-                          "rest": 180
-                        }
-                      ]
-                    }
-                  ]
+                  "reps": 10,
+                  "weight": 70,
+                  "rest": 120,
+                  "tempo": "3-0-1-0",
+                  "rpe": 8
+                },
+                {
+                  "reps": 10,
+                  "weight": 70,
+                  "rest": 120,
+                  "tempo": "3-0-1-0",
+                  "rpe": 8
+                },
+                {
+                  "reps": 10,
+                  "weight": 70,
+                  "rest": 120,
+                  "tempo": "3-0-1-0",
+                  "rpe": 9
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "color": "#4444FF",
+          "exercises": [
+            {
+              "exercise": "65123abc4567def890lmnop",
+              "sets": [
+                {
+                  "reps": 15,
+                  "weight": 50,
+                  "rest": 60,
+                  "tempo": "2-0-2-0",
+                  "rpe": 7
+                },
+                {
+                  "reps": 15,
+                  "weight": 50,
+                  "rest": 60,
+                  "tempo": "2-0-2-0",
+                  "rpe": 7
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "Intensificación",
+      "semanaInicio": 7,
+      "diaInicio": 1,
+      "semanaFin": 8,
+      "diaFin": 7,
+      "variants": [
+        {
+          "color": "#FF8844",
+          "exercises": [
+            {
+              "exercise": "65123abc4567def890ghijk",
+              "sets": [
+                {
+                  "reps": 6,
+                  "weight": 85,
+                  "rest": 180,
+                  "tempo": "3-0-1-0",
+                  "rpe": 9
+                },
+                {
+                  "reps": 6,
+                  "weight": 85,
+                  "rest": 180,
+                  "tempo": "3-0-1-0",
+                  "rpe": 9
+                },
+                {
+                  "reps": 6,
+                  "weight": 85,
+                  "rest": 180,
+                  "tempo": "3-0-1-0",
+                  "rpe": 9.5
                 }
               ]
             }
@@ -98,7 +146,5 @@
         }
       ]
     }
-  ],
-  "createdAt": "2024-01-17T12:00:00.000Z",
-  "updatedAt": "2024-01-17T12:00:00.000Z"
+  ]
 }

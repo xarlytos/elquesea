@@ -1,0 +1,87 @@
+{
+  "nombre": "Plan de Entrenamiento Ejemplo",
+  "descripcion": "Plan de entrenamiento de ejemplo con un día",
+  "fechaInicio": "2024-12-14T00:00:00.000Z",
+  "meta": "Mejorar fuerza y resistencia",
+  "semanas": 1,
+  "tipo": "Planificacion",
+  "plan": [{
+    "weekNumber": 1,
+    "startDate": "2024-12-14T00:00:00.000Z",
+    "days": {
+      "Lunes": {
+        "day": "Lunes",
+        "fecha": "2024-12-14T00:00:00.000Z",
+        "sessions": [{
+          "name": "Sesión de Fuerza",
+          "tipo": "Normal",
+          "rondas": 1,
+          "exercises": [{
+            "exercise": "65123456789012345678901234",
+            "sets": [{
+              "reps": 12,
+              "weight": 60,
+              "rest": 90,
+              "rpe": 8,
+              "completed": true,
+              "checkIns": [{
+                "color": "#00FF00",
+                "comentario": "Buen set, peso adecuado",
+                "fecha": "2024-12-14T10:30:00.000Z"
+              }],
+              "renderConfig": {
+                "campo1": "reps",
+                "campo2": "weight",
+                "campo3": "rest"
+              }
+            }]
+          }, {
+            "exercise": "65123456789012345678901235",
+            "sets": [{
+              "reps": 10,
+              "weight": 80,
+              "rest": 120,
+              "rpe": 9,
+              "completed": true,
+              "checkIns": [{
+                "color": "#FFFF00",
+                "comentario": "Peso desafiante, mantener técnica",
+                "fecha": "2024-12-14T10:45:00.000Z"
+              }],
+              "renderConfig": {
+                "campo1": "reps",
+                "campo2": "weight",
+                "campo3": "rpe"
+              }
+            }]
+          }]
+        }, {
+          "name": "Sesión de Cardio",
+          "tipo": "Normal",
+          "rondas": 1,
+          "exercises": [{
+            "exercise": "65123456789012345678901236",
+            "sets": [{
+              "distance": 5000,
+              "tiempo": 1800,
+              "calories": 400,
+              "completed": true,
+              "checkIns": [{
+                "color": "#0000FF",
+                "comentario": "Buena sesión de cardio",
+                "fecha": "2024-12-14T11:30:00.000Z"
+              }],
+              "renderConfig": {
+                "campo1": "distance",
+                "campo2": "tiempo",
+                "campo3": "calories"
+              }
+            }]
+          }]
+        }]
+      }
+    }
+  }],
+  "trainer": "65123456789012345678901237",
+  "notas": []
+}

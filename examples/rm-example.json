@@ -1,0 +1,7 @@
+{
+  "cliente": "65123abc4567def890ghijk",  // ID del cliente
+  "ejercicio": "65123abc4567def890lmnop", // ID del ejercicio
+  "trainer": "65123abc4567def890qrstu",   // ID del entrenador
+  "rm": 100,                              // Valor del RM en kg o lb
+  "fecha": "2024-12-15T15:54:14+01:00"   // Fecha opcional, si no se proporciona se usará la actual
+}

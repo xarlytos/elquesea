@@ -29,6 +29,13 @@ router.post('/',
   incomeController.crearIngreso
 );
 
+// Actualizar un ingreso
+router.put('/:id', 
+  verificarToken, 
+  verificarEntrenador, 
+  incomeController.actualizarIngreso
+);
+
 // Actualizar el estado de un ingreso
 router.patch('/:id/estado', 
   verificarToken, 

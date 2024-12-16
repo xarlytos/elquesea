@@ -120,15 +120,23 @@ exports.updateExpense = async (req, res) => {
 // Eliminar un gasto
 exports.deleteExpense = async (req, res) => {
   try {
+    console.log('Delete Expense Request Received');
+    console.log('Request Params:', req.params);
+    console.log('Request User:', req.user);
+
     const expense = await Expense.findById(req.params.id);
+    console.log('Found Expense:', expense);
 
     if (!expense || expense.entrenador.toString() !== req.user.id) {
+      console.log('Expense Not Found or User Not Authorized');
       return res.status(404).json({ message: 'Gasto no encontrado' });
     }
 
-    await expense.remove();
+    await Expense.deleteOne({ _id: req.params.id });
+    console.log('Expense Deleted Successfully');
     res.json({ message: 'Gasto eliminado' });
   } catch (error) {
+    console.error('Error Deleting Expense:', error);
     res.status(500).json({ message: 'Error al eliminar gasto', error });
   }
 };

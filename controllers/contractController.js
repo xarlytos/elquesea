@@ -66,29 +66,48 @@ exports.getContract = catchAsync(async (req, res, next) => {
 
 // Actualizar un contrato
 exports.updateContract = catchAsync(async (req, res, next) => {
+    console.log('Update Contract Request Received');
+    console.log('Request Params:', req.params);
+    console.log('Request Body:', req.body);
+    console.log('Request User:', req.user);
+
+    // Buscar el contrato
     const contract = await Contract.findById(req.params.id);
+    console.log('Found Contract:', contract);
 
     if (!contract) {
         return next(new AppError('No se encontró el contrato con ese ID', 404));
     }
 
-    // Solo el trainer asignado puede modificar el contrato
-    if (contract.trainer.toString() !== req.user.id) {
-        return next(new AppError('Solo el trainer asignado puede modificar este contrato', 403));
+    // Verificar que el entrenador tiene acceso al contrato
+    // Permitir la actualización si:
+    // 1. El contrato pertenece al trainer actual, o
+    // 2. El trainer actual es el creador del contrato
+    const isTrainerOwner = contract.trainer.toString() === req.user.id;
+    const isTrainerCreator = contract.trainer.toString() === req.user.id;
+
+    if (!isTrainerOwner && !isTrainerCreator) {
+        console.log('Unauthorized Update Attempt');
+        console.log('Contract Trainer:', contract.trainer.toString());
+        console.log('Current User ID:', req.user.id);
+        return next(new AppError('No tienes permiso para actualizar este contrato', 403));
     }
 
-    // Evitar cambiar el trainer o cliente asignado
-    delete req.body.trainer;
-    delete req.body.cliente;
-
+    // Actualizar el contrato
     const updatedContract = await Contract.findByIdAndUpdate(
         req.params.id,
-        req.body,
+        {
+            ...req.body,
+            trainer: contract.trainer // Mantener el trainer original
+        },
         {
             new: true,
             runValidators: true
         }
-    );
+    ).populate('cliente', 'nombre email')
+     .populate('trainer', 'nombre email');
+
+    console.log('Updated Contract:', updatedContract);
 
     res.status(200).json({
         status: 'success',

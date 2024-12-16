@@ -19,6 +19,7 @@ router
 router
     .route('/:id')
     .patch(verificarRol('trainer'), contractController.updateContract)
-    .delete(verificarRol('trainer'), contractController.deleteContract);
+    .delete(verificarRol('trainer'), contractController.deleteContract)
+    .put(verificarRol('trainer'), contractController.updateContract);
 
 module.exports = router;

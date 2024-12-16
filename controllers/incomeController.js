@@ -117,6 +117,51 @@ exports.actualizarEstadoIngreso = async (req, res) => {
   }
 };
 
+// Actualizar un ingreso
+exports.actualizarIngreso = async (req, res) => {
+  try {
+    console.log('Update Income Request Received');
+    console.log('Request Params:', req.params);
+    console.log('Request Body:', req.body);
+    console.log('Request User:', req.user);
+
+    const { importe, moneda, fecha, descripcion, categoria, tipo } = req.body;
+
+    const ingreso = await Income.findById(req.params.id);
+    console.log('Found Income:', ingreso);
+
+    if (!ingreso) {
+      console.log('Income Not Found');
+      return res.status(404).json({ message: 'Ingreso no encontrado' });
+    }
+
+    // Verificar que el ingreso pertenece al usuario
+    if (ingreso.entrenador.toString() !== req.user.id) {
+      console.log('Unauthorized Update Attempt');
+      return res.status(401).json({ message: 'No autorizado para actualizar este ingreso' });
+    }
+
+    const ingresoActualizado = await Income.findByIdAndUpdate(
+      req.params.id,
+      {
+        importe,
+        moneda,
+        fecha,
+        descripcion,
+        categoria,
+        tipo
+      },
+      { new: true }
+    );
+
+    console.log('Updated Income:', ingresoActualizado);
+    res.json(ingresoActualizado);
+  } catch (error) {
+    console.error('Error Updating Income:', error);
+    res.status(500).json({ message: 'Error al actualizar el ingreso', error: error.message });
+  }
+};
+
 // Crear ingresos futuros basados en un plan de pago
 exports.crearIngresosFuturos = async (planDePago, clienteId) => {
   try {
@@ -207,12 +252,23 @@ exports.crearIngresosFuturos = async (planDePago, clienteId) => {
 // Eliminar un ingreso
 exports.eliminarIngreso = async (req, res) => {
   try {
-    const ingreso = await Income.findById(req.params.id);
-    if (!ingreso) return res.status(404).json({ message: 'Ingreso no encontrado' });
+    console.log('Delete Income Request Received');
+    console.log('Request Params:', req.params);
+    console.log('Request User:', req.user);
 
-    await ingreso.remove();
+    const ingreso = await Income.findById(req.params.id);
+    console.log('Found Income:', ingreso);
+
+    if (!ingreso) {
+      console.log('Income Not Found');
+      return res.status(404).json({ message: 'Ingreso no encontrado' });
+    }
+
+    await Income.deleteOne({ _id: req.params.id });
+    console.log('Income Deleted Successfully');
     res.status(200).json({ message: 'Ingreso eliminado' });
   } catch (error) {
-    res.status(500).json({ message: 'Error al eliminar el ingreso' });
+    console.error('Error Deleting Income:', error);
+    res.status(500).json({ message: 'Error al eliminar el ingreso', error: error.message });
   }
 };

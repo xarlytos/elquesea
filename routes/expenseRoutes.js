@@ -44,6 +44,9 @@ router.put(
   expenseController.updateExpense
 );
 
+// Ruta para asociar cliente o servicio a un gasto
+router.patch('/:id/asociar', verificarToken, verificarRol(['trainer']), expenseController.asociarGasto);
+
 // Ruta para eliminar un gasto
 router.delete('/:id', verificarToken, verificarRol(['trainer']), expenseController.deleteExpense);
 

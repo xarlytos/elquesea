@@ -2,6 +2,9 @@
 
 const Expense = require('../models/Expense');
 const { validationResult } = require('express-validator');
+const Client = require('../models/Client'); // Importar modelo de Cliente
+const Service = require('../models/Service'); // Importar modelo de Servicio
+const catchAsync = require('../utils/catchAsync'); // Importar función catchAsync
 
 // Crear un nuevo gasto
 exports.createExpense = async (req, res) => {
@@ -47,53 +50,43 @@ exports.createExpense = async (req, res) => {
 };
 
 // Obtener todos los gastos del entrenador autenticado
-exports.getExpenses = async (req, res) => {
-  try {
-    console.log('\n=== GET ALL EXPENSES REQUEST ===');
-    console.log('User from request:', req.user);
-    console.log('Headers:', req.headers);
+exports.getExpenses = catchAsync(async (req, res) => {
+    const gastos = await Expense.find({ entrenador: req.user.id })
+        .populate('client', 'nombre email telefono') // Poblar datos relevantes del cliente
+        .populate('service', 'nombre descripcion precio'); // Poblar datos relevantes del servicio
 
-    let query = { entrenador: req.user.id };
-    console.log('Query filter:', query);
-
-    const expenses = await Expense.find(query);
-    console.log('Found expenses count:', expenses.length);
-
-    res.json(expenses);
-    console.log('Response sent successfully');
-  } catch (error) {
-    console.error('Error in getExpenses:', error);
-    res.status(500).json({ message: error.message });
-  }
-};
+    res.status(200).json({
+        status: 'success',
+        results: gastos.length,
+        data: {
+            gastos
+        }
+    });
+});
 
 // Obtener un gasto por ID
-exports.getExpenseById = async (req, res) => {
-  try {
-    console.log('\n=== GET EXPENSE BY ID REQUEST ===');
-    console.log('Expense ID:', req.params.id);
-    console.log('User from request:', req.user);
-    console.log('Headers:', req.headers);
+exports.getExpenseById = catchAsync(async (req, res) => {
+    const gasto = await Expense.findOne({ 
+        _id: req.params.id,
+        entrenador: req.user.id 
+    })
+    .populate('client', 'nombre email telefono')
+    .populate('service', 'nombre descripcion precio');
 
-    const expense = await Expense.findOne({
-      _id: req.params.id,
-      entrenador: req.user.id
-    });
-
-    console.log('Found expense:', expense);
-
-    if (!expense) {
-      console.log('Expense not found');
-      return res.status(404).json({ message: 'Gasto no encontrado' });
+    if (!gasto) {
+        return res.status(404).json({
+            status: 'error',
+            message: 'Gasto no encontrado'
+        });
     }
 
-    res.json(expense);
-    console.log('Response sent successfully');
-  } catch (error) {
-    console.error('Error in getExpenseById:', error);
-    res.status(500).json({ message: error.message });
-  }
-};
+    res.status(200).json({
+        status: 'success',
+        data: {
+            gasto
+        }
+    });
+});
 
 // Actualizar un gasto
 exports.updateExpense = async (req, res) => {
@@ -140,3 +133,57 @@ exports.deleteExpense = async (req, res) => {
     res.status(500).json({ message: 'Error al eliminar gasto', error });
   }
 };
+
+// Asociar cliente o servicio a un gasto
+exports.asociarGasto = catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const { clientId, serviceId } = req.body;
+
+    if (!clientId && !serviceId) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'Debe proporcionar un clientId o serviceId'
+        });
+    }
+
+    const gasto = await Expense.findById(id);
+    if (!gasto) {
+        return res.status(404).json({
+            status: 'error',
+            message: 'Gasto no encontrado'
+        });
+    }
+
+    // Verificar y asociar cliente
+    if (clientId) {
+        const client = await Client.findById(clientId);
+        if (!client) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Cliente no encontrado'
+            });
+        }
+        gasto.client = clientId;
+    }
+
+    // Verificar y asociar servicio
+    if (serviceId) {
+        const service = await Service.findById(serviceId);
+        if (!service) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Servicio no encontrado'
+            });
+        }
+        gasto.service = serviceId;
+    }
+
+    await gasto.save();
+
+    res.status(200).json({
+        status: 'success',
+        data: {
+            gasto
+        }
+    });
+});

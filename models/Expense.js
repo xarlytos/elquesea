@@ -13,6 +13,17 @@ const ExpenseSchema = new Schema({
     type: String,
     enum: ['fijo', 'variable'],
     required: true
+  },
+  // Añadir referencias a Client y Service
+  client: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: false
+  },
+  service: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Service',
+    required: false
   }
 });
 

@@ -21,7 +21,20 @@ const documentoSchema = new Schema({
 
 const invoiceSchema = new Schema({
   // Información Básica
-  numeroFactura: { type: String, unique: true, required: true },
+  numeroFactura: { 
+    type: String, 
+    unique: true, 
+    required: true,
+    index: true 
+  },
+  number: { 
+    type: String,
+    unique: true,
+    required: true,
+    default: function() {
+      return this.numeroFactura; 
+    }
+  },
   fecha: { type: Date, default: Date.now },
   metodoPago: { 
     type: String, 

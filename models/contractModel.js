@@ -12,13 +12,7 @@ const contractSchema = new mongoose.Schema({
     },
     fechaFin: {
         type: Date,
-        required: [true, 'La fecha de fin es requerida'],
-        validate: {
-            validator: function(value) {
-                return value > this.fechaInicio;
-            },
-            message: 'La fecha de fin debe ser posterior a la fecha de inicio'
-        }
+        required: [true, 'La fecha de fin es requerida']
     },
     estado: {
         type: String,
@@ -41,6 +35,66 @@ const contractSchema = new mongoose.Schema({
     }
 }, {
     timestamps: true
+});
+
+// Middleware para validar fechas en actualizaciones
+contractSchema.pre('findOneAndUpdate', function(next) {
+    const update = this.getUpdate();
+    
+    // Si no hay fechas para actualizar, continuar
+    if (!update.fechaInicio && !update.fechaFin) {
+        return next();
+    }
+
+    try {
+        let fechaInicio, fechaFin;
+
+        // Obtener fechaInicio (de la actualización o del documento existente)
+        if (update.fechaInicio) {
+            fechaInicio = new Date(update.fechaInicio);
+        }
+
+        // Obtener fechaFin (de la actualización o del documento existente)
+        if (update.fechaFin) {
+            fechaFin = new Date(update.fechaFin);
+        }
+
+        // Si tenemos ambas fechas, validar
+        if (fechaInicio && fechaFin) {
+            console.log(' Validando fechas en middleware:', {
+                fechaInicio: fechaInicio.toISOString(),
+                fechaFin: fechaFin.toISOString(),
+                diferenciaDias: Math.floor((fechaFin - fechaInicio) / (1000 * 60 * 60 * 24))
+            });
+
+            if (fechaFin <= fechaInicio) {
+                throw new Error('La fecha de fin debe ser posterior a la fecha de inicio');
+            }
+        }
+
+        next();
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Middleware para validar fechas en nuevos documentos
+contractSchema.pre('save', function(next) {
+    if (this.fechaInicio && this.fechaFin) {
+        const fechaInicio = new Date(this.fechaInicio);
+        const fechaFin = new Date(this.fechaFin);
+
+        console.log(' Validando fechas en nuevo contrato:', {
+            fechaInicio: fechaInicio.toISOString(),
+            fechaFin: fechaFin.toISOString(),
+            diferenciaDias: Math.floor((fechaFin - fechaInicio) / (1000 * 60 * 60 * 24))
+        });
+
+        if (fechaFin <= fechaInicio) {
+            return next(new Error('La fecha de fin debe ser posterior a la fecha de inicio'));
+        }
+    }
+    next();
 });
 
 // Middleware para actualizar el estado automáticamente

@@ -56,32 +56,74 @@ exports.getDocumento = catchAsync(async (req, res, next) => {
 
 // Actualizar un documento
 exports.updateDocumento = catchAsync(async (req, res, next) => {
+    console.log('🚀 Iniciando actualización de documento...');
+    console.log('📋 Datos recibidos:', {
+        id: req.params.id,
+        actualizaciones: req.body
+    });
+
+    // Buscar el documento existente
+    console.log('🔍 Buscando documento existente...');
     const documento = await OtrosDocumentos.findById(req.params.id);
 
     if (!documento) {
+        console.log('❌ Documento no encontrado');
         return next(new AppError('No se encontró el documento con ese ID', 404));
     }
 
-    // Verificar que el trainer sea el propietario
-    if (documento.trainer && documento.trainer.toString() !== req.user.id) {
-        return next(new AppError('No tienes permiso para modificar este documento', 403));
+    console.log('✅ Documento encontrado:', {
+        id: documento._id,
+        nombre: documento.nombre,
+        tipo: documento.tipo
+    });
+
+    // Verificar permisos
+    const isTrainerOwner = documento.trainer.toString() === req.user.id;
+
+    if (!isTrainerOwner) {
+        console.log('🚫 Acceso denegado:', {
+            idUsuario: req.user.id,
+            idTrainerDocumento: documento.trainer.toString()
+        });
+        return next(new AppError('No tienes permiso para actualizar este documento', 403));
     }
 
-    const updatedDocumento = await OtrosDocumentos.findByIdAndUpdate(
-        req.params.id,
-        req.body,
-        {
-            new: true,
-            runValidators: true
-        }
-    );
+    try {
+        // Actualizar el documento
+        console.log('📝 Aplicando actualizaciones al documento...');
+        const updatedDocumento = await OtrosDocumentos.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            {
+                new: true,
+                runValidators: true
+            }
+        ).populate('trainer', 'nombre email');
 
-    res.status(200).json({
-        status: 'success',
-        data: {
-            documento: updatedDocumento
+        if (!updatedDocumento) {
+            throw new Error('Error al actualizar el documento');
         }
-    });
+
+        console.log('✨ Documento actualizado exitosamente:', {
+            id: updatedDocumento._id,
+            nombre: updatedDocumento.nombre,
+            tipo: updatedDocumento.tipo,
+            fechaActualizacion: updatedDocumento.updatedAt
+        });
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                documento: updatedDocumento
+            }
+        });
+    } catch (error) {
+        console.log('❌ Error al actualizar el documento:', {
+            mensaje: error.message,
+            tipo: error.name
+        });
+        return next(new AppError(error.message, 400));
+    }
 });
 
 // Eliminar un documento

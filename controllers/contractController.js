@@ -66,55 +66,80 @@ exports.getContract = catchAsync(async (req, res, next) => {
 
 // Actualizar un contrato
 exports.updateContract = catchAsync(async (req, res, next) => {
-    console.log('Update Contract Request Received');
-    console.log('Request Params:', req.params);
-    console.log('Request Body:', req.body);
-    console.log('Request User:', req.user);
+    console.log('🚀 Iniciando actualización de contrato...');
+    console.log('📋 Datos recibidos:', {
+        id: req.params.id,
+        actualizaciones: req.body
+    });
 
-    // Buscar el contrato
+    // Buscar el contrato existente
+    console.log('🔍 Buscando contrato existente...');
     const contract = await Contract.findById(req.params.id);
-    console.log('Found Contract:', contract);
 
     if (!contract) {
+        console.log('❌ Contrato no encontrado');
         return next(new AppError('No se encontró el contrato con ese ID', 404));
     }
 
-    // Verificar que el entrenador tiene acceso al contrato
-    // Permitir la actualización si:
-    // 1. El contrato pertenece al trainer actual, o
-    // 2. El trainer actual es el creador del contrato
-    const isTrainerOwner = contract.trainer.toString() === req.user.id;
+    console.log('✅ Contrato encontrado:', {
+        id: contract._id,
+        nombre: contract.nombre,
+        estado: contract.estado,
+        fechaActualInicio: contract.fechaInicio,
+        fechaActualFin: contract.fechaFin
+    });
+
+    // Verificar permisos
+    const isTrainerOwner = req.user.rol === 'trainer';
     const isTrainerCreator = contract.trainer.toString() === req.user.id;
 
     if (!isTrainerOwner && !isTrainerCreator) {
-        console.log('Unauthorized Update Attempt');
-        console.log('Contract Trainer:', contract.trainer.toString());
-        console.log('Current User ID:', req.user.id);
+        console.log('🚫 Acceso denegado:', {
+            rolUsuario: req.user.rol,
+            idUsuario: req.user.id,
+            idTrainerContrato: contract.trainer.toString()
+        });
         return next(new AppError('No tienes permiso para actualizar este contrato', 403));
     }
 
-    // Actualizar el contrato
-    const updatedContract = await Contract.findByIdAndUpdate(
-        req.params.id,
-        {
-            ...req.body,
-            trainer: contract.trainer // Mantener el trainer original
-        },
-        {
-            new: true,
-            runValidators: true
-        }
-    ).populate('cliente', 'nombre email')
-     .populate('trainer', 'nombre email');
+    try {
+        // Actualizar el contrato
+        console.log('📝 Aplicando actualizaciones al contrato...');
+        const updatedContract = await Contract.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            {
+                new: true,
+                runValidators: true
+            }
+        ).populate('cliente', 'nombre email')
+         .populate('trainer', 'nombre email');
 
-    console.log('Updated Contract:', updatedContract);
-
-    res.status(200).json({
-        status: 'success',
-        data: {
-            contract: updatedContract
+        if (!updatedContract) {
+            throw new Error('Error al actualizar el contrato');
         }
-    });
+
+        console.log('✨ Contrato actualizado exitosamente:', {
+            id: updatedContract._id,
+            nombre: updatedContract.nombre,
+            estado: updatedContract.estado,
+            fechaInicio: updatedContract.fechaInicio,
+            fechaFin: updatedContract.fechaFin
+        });
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                contract: updatedContract
+            }
+        });
+    } catch (error) {
+        console.log('❌ Error al actualizar el contrato:', {
+            mensaje: error.message,
+            tipo: error.name
+        });
+        return next(new AppError(error.message, 400));
+    }
 });
 
 // Eliminar un contrato

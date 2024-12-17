@@ -17,7 +17,7 @@ router
 
 router
     .route('/:id')
-    .patch(verificarRol('trainer'), otrosDocumentosController.updateDocumento)
+    .put(verificarRol('trainer'), otrosDocumentosController.updateDocumento)
     .delete(verificarRol('trainer'), otrosDocumentosController.deleteDocumento);
 
 module.exports = router;

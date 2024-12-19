@@ -71,6 +71,14 @@ router.get(
   invoiceController.getInvoiceById
 );
 
+// Generar PDF de la factura
+router.get(
+  '/:id/pdf',
+  verificarToken,
+  verificarRol(['admin', 'trainer', 'client']),
+  invoiceController.generateInvoicePDF
+);
+
 // Actualizar una factura (solo entrenadores o admins)
 router.put(
   '/:id',
@@ -84,7 +92,7 @@ router.put(
 router.delete(
   '/:id',
   verificarToken,
-  verificarRol('admin'), // Solo admins pueden eliminar
+  verificarRol('trainer'), // Solo admins pueden eliminar
   invoiceController.deleteInvoice
 );
 

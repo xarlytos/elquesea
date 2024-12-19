@@ -19,6 +19,7 @@ const IncomeSchema = new Schema({
     required: true
   },
   fecha: { type: Date, default: Date.now },
+  fechaPagoRealizado: { type: Date },  
   descripcion: String,
   transaccion: { type: Schema.Types.ObjectId, ref: 'Transaction' }
 });

@@ -9,6 +9,7 @@ exports.obtenerIngresos = async (req, res) => {
     const ingresos = await Income.find({ entrenador: req.user.id })
       .populate('cliente', 'nombre email')
       .populate('planDePago', 'nombre precio')
+      .select('monto moneda estado metodoPago fecha fechaPagoRealizado descripcion')
       .sort({ fecha: -1 });
     
     console.log('Ingresos encontrados:', ingresos.length);
@@ -48,7 +49,8 @@ exports.crearIngreso = async (req, res) => {
       moneda, 
       descripcion, 
       metodoPago,
-      estado = 'pendiente'
+      estado = 'pendiente',
+      fechaPagoRealizado = null  // Permitir que se envíe en el body o sea null por defecto
     } = req.body;
 
     console.log('Datos mapeados:', {
@@ -58,7 +60,8 @@ exports.crearIngreso = async (req, res) => {
       cliente,
       planDePago,
       metodoPago,
-      estado
+      estado,
+      fechaPagoRealizado
     });
 
     // Validar método de pago
@@ -77,6 +80,7 @@ exports.crearIngreso = async (req, res) => {
       estado,
       entrenador: req.user.id,
       fecha: req.body.fecha || new Date(),
+      fechaPagoRealizado  // Usar el valor proporcionado o null
     });
 
     // Populate los campos de referencia antes de enviar la respuesta
@@ -93,18 +97,24 @@ exports.crearIngreso = async (req, res) => {
 // Actualizar estado de un ingreso
 exports.actualizarEstadoIngreso = async (req, res) => {
   try {
+    const { id } = req.params;
     const { estado } = req.body;
-    
-    // Validar estado
+
     if (!['pendiente', 'pagado', 'cancelado'].includes(estado)) {
       return res.status(400).json({ message: 'Estado no válido' });
     }
 
+    const updateData = {
+      estado,
+      // Si el estado cambia a pagado, actualizar la fecha de pago
+      ...(estado === 'pagado' ? { fechaPagoRealizado: new Date() } : {})
+    };
+
     const ingreso = await Income.findByIdAndUpdate(
-      req.params.id,
-      { estado },
+      id,
+      updateData,
       { new: true }
-    ).populate('cliente planDePago');
+    ).populate('cliente', 'nombre email');
 
     if (!ingreso) {
       return res.status(404).json({ message: 'Ingreso no encontrado' });
@@ -112,7 +122,7 @@ exports.actualizarEstadoIngreso = async (req, res) => {
 
     res.json(ingreso);
   } catch (error) {
-    console.error('Error al actualizar estado del ingreso:', error);
+    console.error('Error al actualizar el estado del ingreso:', error);
     res.status(500).json({ message: 'Error al actualizar el estado del ingreso' });
   }
 };
@@ -233,7 +243,8 @@ exports.crearIngresosFuturos = async (planDePago, clienteId) => {
         planDePago: planDePago._id,
         fecha: fechaPago,
         estado: i === 0 ? 'pagado' : 'pendiente',
-        metodoPago: 'stripe' // agregar el método de pago
+        metodoPago: 'stripe', // agregar el método de pago
+        fechaPagoRealizado: i === 0 ? new Date() : null // Si el estado es pagado, establecer la fecha de pago
       });
 
       const ingresoGuardado = await nuevoIngreso.save();

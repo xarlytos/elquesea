@@ -309,6 +309,78 @@ const recordPayment = async (req, res) => {
     }
 };
 
+// Generar PDF de la factura
+const generateInvoicePDF = async (req, res) => {
+    try {
+        const invoiceId = req.params.id;  
+        console.log('Iniciando generación de PDF para factura ID:', invoiceId);
+
+        const invoice = await Invoice.findById(invoiceId)
+            .populate('client')
+            .populate('trainer')
+            .populate('transactions');
+
+        console.log('Datos de la factura recuperados:', {
+            numeroFactura: invoice?.numeroFactura,
+            clienteNombre: invoice?.client?.nombre,
+            trainerNombre: invoice?.trainer?.nombre,
+            total: invoice?.totalAmount,
+            estado: invoice?.status
+        });
+
+        if (!invoice) {
+            console.error('Factura no encontrada con ID:', invoiceId);
+            return res.status(404).json({ message: 'Factura no encontrada.' });
+        }
+
+        // Crear PDF
+        console.log('Iniciando creación del documento PDF');
+        const doc = new PDFDocument();
+        const chunks = [];
+
+        doc.on('data', chunk => {
+            console.log('Chunk de datos del PDF recibido:', chunk.length, 'bytes');
+            chunks.push(chunk)
+        });
+        
+        doc.on('end', () => {
+            console.log('Finalizada la generación del PDF');
+            const pdfData = Buffer.concat(chunks);
+            console.log('Tamaño total del PDF:', pdfData.length, 'bytes');
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `attachment; filename=factura-${invoice.numeroFactura}.pdf`);
+            console.log('Headers establecidos, enviando PDF al cliente');
+            res.send(pdfData);
+            console.log('PDF enviado exitosamente');
+        });
+
+        // Generar contenido del PDF
+        console.log('Agregando contenido al PDF');
+        doc.fontSize(20).text(`Factura Número: ${invoice.numeroFactura}`, { align: 'center' });
+        doc.moveDown();
+        doc.fontSize(14).text(`Total: ${invoice.currency} ${invoice.totalAmount}`);
+        doc.text(`Estado: ${invoice.status}`);
+        doc.text(`Cliente: ${invoice.client.nombre}`);
+        doc.text(`Entrenador: ${invoice.trainer.nombre}`);
+        doc.text(`Notas: ${invoice.comentario || 'N/A'}`);
+
+        // Finalizar el PDF
+        console.log('Finalizando la generación del PDF');
+        doc.end();
+    } catch (error) {
+        console.error('Error detallado generando el PDF:', {
+            mensaje: error.message,
+            stack: error.stack,
+            tipo: error.name
+        });
+        res.status(500).json({ 
+            message: 'Error generando el PDF', 
+            error: error.message,
+            stack: error.stack 
+        });
+    }
+};
+
 // Enviar la factura por correo electrónico
 const sendInvoiceByEmail = async (req, res) => {
     try {
@@ -381,5 +453,6 @@ module.exports = {
     updateInvoice,
     deleteInvoice,
     recordPayment,
+    generateInvoicePDF,
     sendInvoiceByEmail,
 };

@@ -173,7 +173,9 @@ const getAllPlannings = async (req, res) => {
         cliente: clienteId,
         trainer: trainerId,
         tipo,
-        esqueleto: null, // Inicializamos el campo esqueleto como null
+        esqueleto: {
+          periodos: []
+        },
         updatedAt: new Date(),
       });
 
@@ -656,7 +658,12 @@ const updatePlanning = async (req, res) => {
       // Poblar los datos del ejercicio para la respuesta
       const populatedExercise = await PlanningExercise.findById(newPlanningExercise._id)
         .populate('exercise')
-        .populate('sets');
+        .populate({
+          path: 'sets',
+          populate: {
+            path: 'checkIns'
+          }
+        });
 
       return res.status(201).json({
         message: 'Ejercicio creado exitosamente',
@@ -1256,23 +1263,35 @@ const updatePlanning = async (req, res) => {
     }
   };
 
-  // Función auxiliar para mapear los nombres de campos de set
-  const mapSetFields = (setData) => {
-    return {
-      reps: setData.reps || setData.repeticiones,
-      weight: setData.weight || setData.peso,
-      rest: setData.rest || setData.descanso,
-      tempo: setData.tempo || setData.ritmo,
-      rpe: setData.rpe || setData.esfuerzoPercibido,
-      rpm: setData.rpm || setData.revolucionesPorMinuto,
-      rir: setData.rir || setData.repeticionesEnReserva,
-      speed: setData.speed || setData.velocidad,
-      cadence: setData.cadence || setData.cadencia,
-      distance: setData.distance || setData.distancia,
-      height: setData.height || setData.altura,
-      calories: setData.calories || setData.calorias,
-      round: setData.round || setData.ronda
-    };
+  // Inicializar esqueleto en una planificación existente
+  const initializeEsqueleto = async (req, res) => {
+    try {
+      console.log('=== Inicializando Esqueleto ===');
+      console.log('ID del Planning:', req.params.planningId);
+      
+      const planning = await Planning.findByIdAndUpdate(
+        req.params.planningId,
+        { 
+          $set: { 
+            esqueleto: {
+              periodos: []
+            }
+          }
+        },
+        { new: true }
+      );
+      
+      if (!planning) {
+        console.log('Error: Planning no encontrado');
+        return res.status(404).json({ message: 'Planning no encontrado' });
+      }
+      
+      console.log('Esqueleto inicializado:', planning.esqueleto);
+      res.status(200).json(planning);
+    } catch (error) {
+      console.error('Error en initializeEsqueleto:', error);
+      res.status(500).json({ message: error.message });
+    }
   };
 
   // Copiar una rutina a un día específico del planning
@@ -1304,7 +1323,7 @@ const updatePlanning = async (req, res) => {
         trainer: req.user._id
       }).populate({
         path: 'plan',
-        match: { weekNumber: parseInt(weekNumber) }
+        match: { weekNumber: weekNumber }
       });
 
       if (!planning) {
@@ -1502,6 +1521,237 @@ const updatePlanning = async (req, res) => {
     }
   };
 
+  // Controlador para variante
+  const createVariante = async (req, res) => {
+    try {
+      console.log('=== Creando/Actualizando Variante ===');
+      console.log('ID del Planning:', req.params.planningId);
+      console.log('Datos recibidos:', req.body);
+      
+      const { tipo1, numeroVariantePrimeraSerie, tipo2, numeroVariantePosteriorSerie } = req.body;
+      const variante = {
+        tipo1,
+        numeroVariantePrimeraSerie,
+        tipo2,
+        numeroVariantePosteriorSerie
+      };
+      
+      console.log('Objeto variante a guardar:', variante);
+      
+      const planning = await Planning.findByIdAndUpdate(
+        req.params.planningId,
+        { $set: { variante } },
+        { new: true }
+      );
+      
+      console.log('Planning actualizado:', planning ? 'Éxito' : 'No encontrado');
+      
+      if (!planning) {
+        console.log('Error: Planning no encontrado');
+        return res.status(404).json({ message: 'Planning no encontrado' });
+      }
+      
+      console.log('Variante guardada exitosamente');
+      res.status(200).json(planning);
+    } catch (error) {
+      console.error('Error en createVariante:', error);
+      res.status(500).json({ message: error.message });
+    }
+  };
+
+  // Controlador para ejercicioEsqueleto
+  const createEjercicioEsqueleto = async (req, res) => {
+    try {
+      console.log('=== Creando Ejercicio Esqueleto ===');
+      console.log('ID del Planning:', req.params.planningId);
+      console.log('Datos recibidos:', req.body);
+      
+      const { nombre, series, ejercicios } = req.body;
+      const ejercicioEsqueleto = {
+        nombre,
+        series,
+        ejercicios
+      };
+      
+      console.log('Objeto ejercicioEsqueleto a guardar:', ejercicioEsqueleto);
+      
+      const planning = await Planning.findByIdAndUpdate(
+        req.params.planningId,
+        { $push: { ejerciciosEsqueleto: ejercicioEsqueleto } },
+        { new: true }
+      );
+      
+      console.log('Planning actualizado:', planning ? 'Éxito' : 'No encontrado');
+      
+      if (!planning) {
+        console.log('Error: Planning no encontrado');
+        return res.status(404).json({ message: 'Planning no encontrado' });
+      }
+      
+      console.log('Ejercicio Esqueleto añadido exitosamente');
+      res.status(200).json(planning);
+    } catch (error) {
+      console.error('Error en createEjercicioEsqueleto:', error);
+      res.status(500).json({ message: error.message });
+    }
+  };
+
+  // Controlador para periodo
+  const createPeriodo = async (req, res) => {
+    try {
+      console.log('=== Creando Periodos ===');
+      console.log('ID del Planning:', req.params.planningId);
+      console.log('Datos recibidos:', req.body);
+      
+      const planning = await Planning.findById(req.params.planningId);
+      
+      if (!planning) {
+        console.log('Error: Planning no encontrado');
+        return res.status(404).json({ message: 'Planning no encontrado' });
+      }
+      
+      // Si no tiene esqueleto, lo inicializamos
+      if (!planning.esqueleto) {
+        console.log('Inicializando esqueleto automáticamente');
+        planning.esqueleto = {
+          periodos: []
+        };
+      }
+
+      // Verificar si es un solo periodo o un array de periodos
+      const periodos = Array.isArray(req.body) ? req.body : [req.body];
+      
+      // Validar y procesar cada periodo
+      for (const periodoData of periodos) {
+        const { inicioSemana, finSemana, inicioDia, finDia, nombre } = periodoData;
+        
+        // Validar que todos los campos requeridos estén presentes
+        if (!inicioSemana || !finSemana || !inicioDia || !finDia || !nombre) {
+          throw new Error('Los campos inicioSemana, finSemana, inicioDia, finDia y nombre son requeridos para cada periodo');
+        }
+
+        const periodo = {
+          nombre,
+          inicioSemana,
+          finSemana,
+          inicioDia,
+          finDia,
+          ejercicios: [] // Inicializamos con un array vacío de ejercicios
+        };
+
+        console.log('Añadiendo periodo:', periodo);
+        planning.esqueleto.periodos.push(periodo);
+      }
+
+      await planning.save();
+      
+      console.log(`${periodos.length} periodo(s) añadido(s) exitosamente`);
+      res.status(200).json({
+        message: `${periodos.length} periodo(s) añadido(s) exitosamente`,
+        planning
+      });
+    } catch (error) {
+      console.error('Error en createPeriodo:', error);
+      console.error('Stack trace:', error.stack);
+      res.status(500).json({ message: error.message });
+    }
+  };
+
+  // Obtener periodos de un planning
+  const getPeriodos = async (req, res) => {
+    try {
+      console.log('=== Obteniendo Periodos ===');
+      console.log('ID del Planning:', req.params.planningId);
+      
+      const planning = await Planning.findById(req.params.planningId);
+      
+      if (!planning) {
+        console.log('Error: Planning no encontrado');
+        return res.status(404).json({ message: 'Planning no encontrado' });
+      }
+      
+      if (!planning.esqueleto || !planning.esqueleto.periodos) {
+        console.log('No hay periodos definidos en este planning');
+        return res.status(200).json({
+          planningId: planning._id,
+          periodos: [],
+          totalPeriodos: 0
+        });
+      }
+      
+      console.log('Periodos encontrados:', planning.esqueleto.periodos);
+      res.status(200).json({
+        planningId: planning._id,
+        periodos: planning.esqueleto.periodos,
+        totalPeriodos: planning.esqueleto.periodos.length
+      });
+    } catch (error) {
+      console.error('Error en getPeriodos:', error);
+      res.status(500).json({ message: error.message });
+    }
+  };
+
+  // Crear esqueleto para un planning
+  const createEsqueleto = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const periodos = req.body;
+
+      console.log('=== Creando Esqueleto ===');
+      console.log('ID del Planning:', id);
+      console.log('Periodos recibidos:', periodos);
+
+      // Validar que el planning existe
+      const planning = await Planning.findById(id);
+      if (!planning) {
+        return res.status(404).json({ mensaje: 'Planning no encontrado' });
+      }
+
+      // Validar el formato de los periodos
+      if (!Array.isArray(periodos)) {
+        return res.status(400).json({ mensaje: 'Los periodos deben ser un array' });
+      }
+
+      // Validar cada periodo
+      for (const periodo of periodos) {
+        if (!periodo.nombre || !periodo.inicioSemana || !periodo.finSemana || 
+            !periodo.inicioDia || !periodo.finDia) {
+          return res.status(400).json({ 
+            mensaje: 'Cada periodo debe tener nombre, inicioSemana, finSemana, inicioDia y finDia' 
+          });
+        }
+      }
+
+      // Crear el objeto esqueleto con el array de periodos
+      planning.esqueleto = {
+        periodos: periodos.map(periodo => ({
+          nombre: periodo.nombre,
+          inicioSemana: periodo.inicioSemana,
+          finSemana: periodo.finSemana,
+          inicioDia: periodo.inicioDia,
+          finDia: periodo.finDia,
+          ejercicios: []
+        }))
+      };
+
+      console.log('Esqueleto a guardar:', planning.esqueleto);
+
+      await planning.save();
+
+      res.status(200).json({ 
+        mensaje: 'Esqueleto creado exitosamente',
+        esqueleto: planning.esqueleto 
+      });
+
+    } catch (error) {
+      console.error('Error al crear esqueleto:', error);
+      res.status(500).json({ 
+        mensaje: 'Error al crear el esqueleto', 
+        error: error.message 
+      });
+    }
+  };
+
   module.exports = {
     getAllPlannings,
     getPlanningById,
@@ -1518,6 +1768,12 @@ const updatePlanning = async (req, res) => {
     updatePlanningExercise,
     addExerciseToSession,
     updateSetRenderConfig,
+    initializeEsqueleto,
     copyRoutineToDay,
-    assignEsqueletoToPlanning
+    assignEsqueletoToPlanning,
+    createVariante,
+    createEjercicioEsqueleto,
+    createPeriodo,
+    getPeriodos,
+    createEsqueleto
   };

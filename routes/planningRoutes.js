@@ -23,6 +23,7 @@ router.get('/schemas', verificarToken, esTrainer, planningController.getAllPlann
 router.get('/:id', verificarToken, esTrainer, planningController.getPlanningById); 
 router.post('/', verificarToken, esTrainer, planningController.createPlanning); 
 router.put('/:id', verificarToken, esTrainer, planningController.updatePlanning); 
+router.post('/:id/esqueleto', verificarToken, esTrainer, planningController.createEsqueleto);
 router.post('/:id/anadirsemanasiguiente', verificarToken, esTrainer, planningController.addNextWeek); 
 router.delete('/:id', verificarToken, esTrainer, planningController.deletePlanning); 
 
@@ -146,5 +147,16 @@ router.post(
   validateRequest,
   planningController.copyRoutineToDay
 );
+
+// Ruta para inicializar el esqueleto
+router.post('/:planningId/initialize-esqueleto', planningController.initializeEsqueleto);
+
+// Ruta para obtener periodos
+router.get('/:planningId/periodos', planningController.getPeriodos);
+
+// Rutas para variante, ejercicioEsqueleto y periodo
+router.post('/:planningId/variante', planningController.createVariante);
+router.post('/:planningId/ejercicio-esqueleto', planningController.createEjercicioEsqueleto);
+router.post('/:planningId/periodo', planningController.createPeriodo);
 
 module.exports = router;

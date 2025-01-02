@@ -93,6 +93,10 @@ const ClientSchema = new Schema({
   fechaNacimiento: { 
     type: Date 
   },
+  enviarFelicitacionCumple: {
+    type: Boolean,
+    default: false
+  },
   genero: {
     type: String,
     enum: ['Masculino', 'Femenino', 'Otro', 'Prefiero no decirlo']
@@ -217,6 +221,25 @@ ClientSchema.pre(/^find/, function(next) {
   });
   this.populate('dietaActiva');
   next();
+});
+
+// Middleware para enviar email de bienvenida después de crear un cliente
+ClientSchema.post('save', async function(doc) {
+  if (this.isNew) { // Solo si es un nuevo cliente
+    try {
+      const axios = require('axios');
+      await axios.post('http://localhost:3000/api/email/welcome', {
+        clientId: doc._id
+      }, {
+        headers: {
+          'Authorization': `Bearer ${doc.trainer.token}` // Asumiendo que el trainer tiene un token
+        }
+      });
+    } catch (error) {
+      console.error('Error al enviar email de bienvenida:', error);
+      // No lanzamos el error para evitar que afecte al guardado del cliente
+    }
+  }
 });
 
 module.exports = mongoose.model('Client', ClientSchema);

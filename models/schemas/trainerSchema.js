@@ -121,5 +121,4 @@ trainerSchema.methods.disconnectInstagram = async function() {
     await this.save();
 };
 
-// Exportar el modelo solo si no existe
-module.exports = mongoose.models.Trainer || mongoose.model('Trainer', trainerSchema);
+module.exports = trainerSchema;

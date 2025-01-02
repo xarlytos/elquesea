@@ -115,6 +115,108 @@ const NotasPlanningSchema = new Schema({
 
 const NotasPlanning = mongoose.model('NotasPlanning', NotasPlanningSchema);
 
+// Esquema para la variante del ejercicio
+const varianteSchema = new Schema({
+    tipo: {
+        type: String,
+        enum: ['intensidad', 'volumen', 'mantenimiento', 'peso_fijo_series'],
+        required: true
+    },
+    numeroVariante: {
+        type: Number,
+        required: function() {
+            return ['intensidad', 'volumen', 'mantenimiento'].includes(this.tipo);
+        }
+    },
+    tipo1: {
+        type: String,
+        enum: ['porcentaje', 'Kg'],
+        required: function() {
+            return this.tipo === 'peso_fijo_series';
+        }
+    },
+    numeroVariantePrimeraSerie: {
+        type: Number,
+        required: function() {
+            return this.tipo === 'peso_fijo_series';
+        }
+    },
+    tipo2: {
+        type: String,
+        enum: ['porcentaje', 'Kg'],
+        required: function() {
+            return this.tipo === 'peso_fijo_series';
+        }
+    },
+    numeroVariantePosteriorSerie: {
+        type: Number,
+        required: function() {
+            return this.tipo === 'peso_fijo_series';
+        }
+    }
+}, { _id: false });
+
+// Esquema para ejercicios del esqueleto
+const ejercicioEsqueletoSchema = new Schema({
+    ejercicio: {
+        type: Schema.Types.ObjectId,
+        ref: 'Exercise',
+        required: true
+    },
+    variante: {
+        type: varianteSchema,
+        required: true
+    }
+}, { _id: false });
+
+// Esquema para periodos
+const periodoSchema = new Schema({
+    nombre: {
+        type: String,
+        required: true
+    },
+    inicioSemana: {
+        type: Number,
+        required: true,
+        min: 1
+    },
+    finSemana: {
+        type: Number,
+        required: true,
+        min: 1,
+        validate: {
+            validator: function(value) {
+                return value >= this.inicioSemana;
+            },
+            message: 'La semana final debe ser mayor o igual a la semana inicial'
+        }
+    },
+    inicioDia: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 7
+    },
+    finDia: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 7
+    },
+    ejercicios: {
+        type: [ejercicioEsqueletoSchema],
+        default: [] // Hacemos que sea un array vacío por defecto
+    }
+});
+
+// Esquema para el esqueleto
+const esqueletoSchema = new Schema({
+    periodos: {
+        type: [periodoSchema],
+        default: [] // Hacemos que periodos tenga un valor por defecto de array vacío
+    }
+});
+
 // 9. Planning Schema
 const PlanningSchema = new Schema(
   {
@@ -132,7 +234,7 @@ const PlanningSchema = new Schema(
       enum: ['Planificacion', 'Plantilla'],
       default: 'Planificacion'
     },
-    esqueleto: { type: Schema.Types.ObjectId, ref: 'Esqueleto' }, // Referencia opcional al esqueleto
+    esqueleto: { type: esqueletoSchema }, // Referencia opcional al esqueleto
     notas: [{ type: Schema.Types.ObjectId, ref: 'NotasPlanning' }],
     updatedAt: { type: Date, default: Date.now },
   },
@@ -157,4 +259,8 @@ module.exports = {
   WeekPlan,
   NotasPlanning,
   Planning,
+  varianteSchema,
+  ejercicioEsqueletoSchema,
+  periodoSchema,
+  esqueletoSchema
 };

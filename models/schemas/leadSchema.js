@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 
-// Verificar si el modelo ya existe antes de definirlo
 const leadSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -36,6 +35,4 @@ const leadSchema = new mongoose.Schema({
   },
 });
 
-const Lead = mongoose.models.Lead || mongoose.model('Lead', leadSchema);
-
-module.exports = Lead;
+module.exports = leadSchema;

@@ -78,6 +78,9 @@ try {
     const messageRoutes = require('./routes/messageRoutes');
     const trainerClientChatRoutes = require('./routes/trainerClientChatRoutes');
     const notasPlanningRoutes = require('./routes/notasPlanningRoutes');
+    const emailRoutes = require('./routes/emailRoutes');
+    const youtubeRoutes = require('./routes/youtubeRoutes');
+    const chatRoutes = require('./routes/chatRoutes');
     // Configurar rutas
     app.use('/api/auth', authRoutes);
     app.use('/api/clientes', clientRoutes);
@@ -112,6 +115,9 @@ try {
     app.use('/api/trainer-client-chats', trainerClientChatRoutes); 
     app.use('/api/planningtemplate', planningTemplateRoutes);
     app.use('/api/notas-planning', notasPlanningRoutes);
+    app.use('/api/email', emailRoutes);
+    app.use('/api/videos', youtubeRoutes);
+    app.use('/api/chat', chatRoutes);
     console.log(' Todas las rutas configuradas correctamente');
 } catch (error) {
     console.error(' Error al cargar las rutas:', error);

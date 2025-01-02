@@ -3,8 +3,18 @@ const RM = require('../models/RM');
 // Crear un nuevo RM
 exports.createRM = async (req, res) => {
   try {
+    console.log('1. Datos recibidos en el body:', req.body);
     const { cliente, ejercicio, rm, fecha } = req.body;
     const trainer = req.user._id; // Obtener el ID del trainer del token
+    console.log('2. ID del trainer:', trainer);
+
+    console.log('3. Creando nuevo RM con datos:', {
+      cliente,
+      ejercicio,
+      trainer,
+      rm,
+      fecha: fecha || new Date()
+    });
 
     const newRM = new RM({ 
       cliente, 
@@ -14,16 +24,22 @@ exports.createRM = async (req, res) => {
       fecha: fecha || new Date() 
     });
     
+    console.log('4. Objeto RM creado:', newRM);
     await newRM.save();
+    console.log('5. RM guardado en la base de datos');
 
+    console.log('6. Buscando RM con populate');
     const populatedRM = await RM.findById(newRM._id)
       .populate('cliente', 'nombre')
       .populate('ejercicio', 'nombre')
       .populate('trainer', 'nombre');
+    
+    console.log('7. RM populado:', populatedRM);
 
     res.status(201).json(populatedRM);
   } catch (error) {
-    console.error('Error al crear RM:', error);
+    console.error('Error detallado al crear RM:', error);
+    console.error('Stack trace:', error.stack);
     res.status(500).json({ error: error.message });
   }
 };

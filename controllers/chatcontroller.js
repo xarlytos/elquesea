@@ -103,3 +103,75 @@ exports.handleChat = async (chatNumber, req, res) => {
     });
   }
 };
+
+exports.handleContentStrategy = async (req, res) => {
+  console.log('\n=== NUEVA SOLICITUD DE ESTRATEGIA DE CONTENIDO ===');
+  console.log('Timestamp:', new Date().toISOString());
+  
+  try {
+    const { contentStrategy } = req.body;
+    
+    if (!contentStrategy || !contentStrategy.objective || !contentStrategy.contentTypes || 
+        !contentStrategy.frequency || !contentStrategy.platforms) {
+      return res.status(400).json({ error: 'Faltan campos requeridos en la estrategia de contenido.' });
+    }
+
+    const prompt = `Soy un entrenador personal y he recopilado la siguiente información para mi estrategia de contenidos:
+
+1. **¿Cuál es el principal objetivo de tu estrategia de contenidos?**
+   - ${contentStrategy.objective}
+
+2. **¿Qué tipos de contenido prefieres crear?**
+   - ${contentStrategy.contentTypes.join('\n- ')}
+
+3. **¿Con qué frecuencia planeas publicar contenido?**
+   - ${contentStrategy.frequency}
+
+4. **¿Qué plataformas de distribución utilizas principalmente?**
+   - ${contentStrategy.platforms.join('\n- ')}
+
+Con base en esta información, por favor genera un plan de contenidos detallado que incluya:
+
+- **Temas Sugeridos:** Proporciona una lista de temas específicos para cada tipo de contenido seleccionado.
+- **Calendario de Publicaciones:** Crea un calendario semanal que indique qué tipo de contenido publicar en cada día y en qué plataforma.
+- **Estrategias de Engagement:** Ofrece tácticas específicas para aumentar la interacción y el compromiso en cada plataforma seleccionada.
+- **Recomendaciones Adicionales:** Incluye sugerencias para optimizar la estrategia, como colaboraciones, uso de hashtags, herramientas de programación de contenido, y métricas clave para monitorear el éxito.
+
+El plan debe estar estructurado en secciones claras y utilizar un formato de fácil lectura, preferiblemente en markdown, con encabezados, listas y viñetas para organizar la información de manera coherente. Asegúrate de que las ideas sean prácticas y accionables, facilitando la implementación de la estrategia para mejorar mi presencia en línea y captar nuevos clientes de manera efectiva.`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: 'Eres un experto en marketing digital y estrategia de contenidos para entrenadores personales. Tu objetivo es crear planes de contenido detallados y accionables que ayuden a los entrenadores a crecer su presencia en línea y atraer nuevos clientes.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 2000,
+      temperature: 0.7,
+      n: 1
+    });
+
+    const contentPlan = completion.choices[0].message.content.trim();
+
+    res.json({
+      timestamp: new Date().toISOString(),
+      contentPlan,
+      status: 'completed',
+      version: '1.0'
+    });
+
+  } catch (error) {
+    console.error('\n=== ERROR EN EL PROCESAMIENTO DE ESTRATEGIA DE CONTENIDO ===');
+    console.error('Error:', error);
+    
+    res.status(500).json({ 
+      error: 'Error al generar el plan de contenido.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
